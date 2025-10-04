@@ -72,6 +72,7 @@ import os
 import time
 import threading
 import json
+import re
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 import pyperclip
@@ -1385,20 +1386,147 @@ class BlogLikeAutomationGUI:
         try:
             self.log_message(f"계정 {account['user_id']} 시작 페이지 {start_page_num}로 이동합니다...", account['id'])
             
-            # 시작 페이지 버튼 찾기
+            # 페이지네이션 영역이 로드될 때까지 대기
+            time.sleep(2)
+            
+            # 시작 페이지 버튼 찾기 (여러 방법 시도)
             start_page_button = None
             
-            # 방법 1: 페이지 번호 링크로 직접 이동
+            # 방법 1: 네이버 블로그 URL 구조에 맞게 직접 이동
+            try:
+                current_url = account['driver'].current_url
+                # 네이버 블로그는 currentPage 파라미터를 사용
+                if 'currentPage=' in current_url:
+                    # 기존 currentPage 파라미터 교체
+                    new_url = current_url.replace(re.search(r'currentPage=\d+', current_url).group(), f'currentPage={start_page_num}')
+                else:
+                    # currentPage 파라미터 추가
+                    separator = '&' if '?' in current_url else '?'
+                    new_url = f"{current_url}{separator}currentPage={start_page_num}"
+                
+                self.log_message(f"계정 {account['user_id']} URL로 시작 페이지 이동: {new_url}", account['id'])
+                account['driver'].get(new_url)
+                time.sleep(3)
+                
+                # 이동 후 현재 페이지 확인
+                actual_page = self.get_account_current_page_number(account)
+                if actual_page == start_page_num:
+                    account['current_page'] = actual_page
+                    self.log_message(f"계정 {account['user_id']} URL 이동 성공! 현재 페이지: {actual_page}", account['id'])
+                    return True
+                else:
+                    self.log_message(f"계정 {account['user_id']} URL 이동 후 페이지 불일치. 예상: {start_page_num}, 실제: {actual_page}", account['id'])
+            except Exception as url_e:
+                self.log_message(f"계정 {account['user_id']} URL 이동 실패: {url_e}", account['id'])
+            
+            # 방법 1-2: JavaScript로 페이지 직접 이동 시도
+            try:
+                self.log_message(f"계정 {account['user_id']} JavaScript로 페이지 {start_page_num}로 이동 시도...", account['id'])
+                result = account['driver'].execute_script(f"""
+                    // 네이버 블로그의 페이지네이션 함수 호출
+                    if (typeof goToPage === 'function') {{
+                        goToPage({start_page_num});
+                        return true;
+                    }}
+                    // AngularJS 컨트롤러가 있는 경우
+                    if (typeof angular !== 'undefined' && angular.element(document.body).scope()) {{
+                        var scope = angular.element(document.body).scope();
+                        if (scope && scope.goToPage) {{
+                            scope.goToPage({start_page_num});
+                            return true;
+                        }}
+                    }}
+                    return false;
+                """)
+                
+                if result:
+                    time.sleep(3)
+                    actual_page = self.get_account_current_page_number(account)
+                    if actual_page == start_page_num:
+                        account['current_page'] = actual_page
+                        self.log_message(f"계정 {account['user_id']} JavaScript 이동 성공! 현재 페이지: {actual_page}", account['id'])
+                        return True
+                    else:
+                        self.log_message(f"계정 {account['user_id']} JavaScript 이동 후 페이지 불일치. 예상: {start_page_num}, 실제: {actual_page}", account['id'])
+                else:
+                    self.log_message(f"계정 {account['user_id']} JavaScript 페이지 이동 함수를 찾을 수 없습니다.", account['id'])
+            except Exception as js_e:
+                self.log_message(f"계정 {account['user_id']} JavaScript 이동 실패: {js_e}", account['id'])
+            
+            # 방법 2: 순차적 페이지 이동 (가장 확실한 방법)
+            if start_page_num > 1:
+                try:
+                    self.log_message(f"계정 {account['user_id']} 순차적으로 {start_page_num}페이지까지 이동 시도...", account['id'])
+                    current_page = 1
+                    
+                    # 2페이지부터 시작 페이지까지 순차 이동
+                    for target_page in range(2, start_page_num + 1):
+                        self.log_message(f"계정 {account['user_id']} {target_page}페이지로 이동 중...", account['id'])
+                        
+                        # 다음 페이지 버튼 찾기
+                        next_button = None
+                        try:
+                            # aria-label로 다음 페이지 버튼 찾기
+                            next_button = account['driver'].find_element(By.CSS_SELECTOR, f"a[aria-label='{target_page}페이지']")
+                        except NoSuchElementException:
+                            try:
+                                # 일반적인 다음 페이지 버튼
+                                next_button = account['driver'].find_element(By.CSS_SELECTOR, ".button_next")
+                            except NoSuchElementException:
+                                try:
+                                    # JavaScript로 다음 페이지 버튼 찾기
+                                    next_button = account['driver'].execute_script("""
+                                        var buttons = document.querySelectorAll('a');
+                                        for (var i = 0; i < buttons.length; i++) {
+                                            if (buttons[i].textContent.trim() === arguments[0]) {
+                                                return buttons[i];
+                                            }
+                                        }
+                                        return null;
+                                    """, str(target_page))
+                                except:
+                                    pass
+                        
+                        if next_button:
+                            # 다음 페이지로 이동
+                            account['driver'].execute_script("arguments[0].click();", next_button)
+                            time.sleep(2)
+                            
+                            # 이동 확인
+                            actual_page = self.get_account_current_page_number(account)
+                            if actual_page == target_page:
+                                current_page = actual_page
+                                self.log_message(f"계정 {account['user_id']} {target_page}페이지 이동 성공!", account['id'])
+                            else:
+                                self.log_message(f"계정 {account['user_id']} {target_page}페이지 이동 실패. 현재: {actual_page}", account['id'])
+                                break
+                        else:
+                            self.log_message(f"계정 {account['user_id']} {target_page}페이지 버튼을 찾을 수 없습니다.", account['id'])
+                            break
+                    
+                    # 최종 페이지 확인
+                    final_page = self.get_account_current_page_number(account)
+                    if final_page == start_page_num:
+                        account['current_page'] = final_page
+                        self.log_message(f"계정 {account['user_id']} 순차 이동 성공! 최종 페이지: {final_page}", account['id'])
+                        return True
+                    else:
+                        self.log_message(f"계정 {account['user_id']} 순차 이동 실패. 목표: {start_page_num}, 실제: {final_page}", account['id'])
+                        
+                except Exception as seq_e:
+                    self.log_message(f"계정 {account['user_id']} 순차 이동 중 오류: {seq_e}", account['id'])
+            
+            # 방법 3: 페이지 번호 링크로 직접 이동
             try:
                 start_page_button = account['driver'].find_element(By.LINK_TEXT, str(start_page_num))
                 self.log_message(f"계정 {account['user_id']} 시작 페이지 {start_page_num} 링크를 찾았습니다.", account['id'])
             except NoSuchElementException:
-                # 방법 2: CSS 셀렉터로 페이지 번호 찾기
+                # 방법 4: CSS 셀렉터로 페이지 번호 찾기
                 try:
                     start_page_button = account['driver'].find_element(By.CSS_SELECTOR, f"a[href*='page={start_page_num}']")
                     self.log_message(f"계정 {account['user_id']} 시작 페이지 {start_page_num} 링크를 CSS로 찾았습니다.", account['id'])
                 except NoSuchElementException:
-                    # 방법 3: JavaScript로 페이지 번호 링크 찾기
+                    # 방법 5: JavaScript로 페이지 번호 링크 찾기
                     start_page_button = account['driver'].execute_script(f"""
                         var links = document.querySelectorAll('a');
                         for (var i = 0; i < links.length; i++) {{
@@ -1437,9 +1565,9 @@ class BlogLikeAutomationGUI:
                 account['current_page'] = actual_page
                 self.log_message(f"계정 {account['user_id']} 실제 이동된 시작 페이지: {actual_page}", account['id'])
                 
-                return True
+                return actual_page == start_page_num
             else:
-                self.log_message(f"계정 {account['user_id']} 시작 페이지 {start_page_num}로 이동할 수 없습니다.", account['id'])
+                self.log_message(f"계정 {account['user_id']} 시작 페이지 {start_page_num} 링크를 찾을 수 없습니다.", account['id'])
                 return False
                 
         except Exception as e:
