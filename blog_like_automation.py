@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 """
+TODO:
+블로그 URL 부분은 사용자가 입력하지 않게 해도 된다 항상 고정값으로 하게 해줘
+그리고 다중 계정 지원이 있기 때문에 기존 계정은 결과적으로 필요가 없음.
 네이버 블로그 공감 자동화 프로그램
 Version: 1.1.0
 Last Updated: 2024-12-19
@@ -68,6 +71,7 @@ import sys
 import os
 import time
 import threading
+import json
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 import pyperclip
@@ -120,7 +124,39 @@ class BlogLikeAutomationGUI:
         self.account_threads = []
         self.account_logs = {}
         
+        # 설정 파일 경로
+        self.config_file = 'config.json'
+        
         self.setup_ui()
+        
+        # 설정 파일에서 계정 정보 로드
+        self.load_config()
+    
+    def add_default_accounts(self):
+        """기본 계정들 추가 (config.json이 없을 때만 사용)"""
+        default_accounts = [
+            {
+                'id': 'cms045757',
+                'password': '!7476458aA',
+                'blog_url': 'https://blog.naver.com/',
+                'start_page': 1
+            },
+            {
+                'id': 'chldudwns645',
+                'password': '981749aA',
+                'blog_url': 'https://blog.naver.com/',
+                'start_page': 1
+            },
+            {
+                'id': 'minaci_',
+                'password': '민아4376!',
+                'blog_url': 'https://blog.naver.com/',
+                'start_page': 1
+            }
+        ]
+        
+        for account_info in default_accounts:
+            self.add_account_from_config(account_info)
     
         
     def setup_ui(self):
@@ -144,13 +180,18 @@ class BlogLikeAutomationGUI:
         ttk.Button(account_frame, text="모든 계정 시작", command=self.start_all_accounts).grid(row=0, column=2, padx=(0, 10))
         ttk.Button(account_frame, text="모든 계정 중지", command=self.stop_all_accounts).grid(row=0, column=3)
         
+        # 설정 관리 버튼
+        ttk.Button(account_frame, text="설정 저장", command=self.save_config_manual).grid(row=1, column=0, padx=(0, 10), pady=(5, 0))
+        ttk.Button(account_frame, text="설정 불러오기", command=self.load_config).grid(row=1, column=1, padx=(0, 10), pady=(5, 0))
+        ttk.Button(account_frame, text="설정 초기화", command=self.reset_config).grid(row=1, column=2, pady=(5, 0))
+        
         # 계정 목록
         self.account_listbox = tk.Listbox(account_frame, height=4)
-        self.account_listbox.grid(row=1, column=0, columnspan=4, sticky=(tk.W, tk.E), pady=(10, 0))
+        self.account_listbox.grid(row=2, column=0, columnspan=4, sticky=(tk.W, tk.E), pady=(10, 0))
         
         # 로그인 정보 프레임 (기본 계정)
         login_frame = ttk.LabelFrame(main_frame, text="기본 계정 정보", padding="10")
-        login_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        login_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
         
         ttk.Label(login_frame, text="ID:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
         self.id_var = tk.StringVar(value="cms045757")
@@ -164,7 +205,7 @@ class BlogLikeAutomationGUI:
         
         # 블로그 URL 입력 프레임
         url_frame = ttk.LabelFrame(main_frame, text="블로그 URL", padding="10")
-        url_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        url_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
         
         ttk.Label(url_frame, text="블로그 URL:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
         self.url_var = tk.StringVar(value="https://blog.naver.com/")
@@ -173,7 +214,7 @@ class BlogLikeAutomationGUI:
         
         # 설정 프레임
         settings_frame = ttk.LabelFrame(main_frame, text="설정", padding="10")
-        settings_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        settings_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
         
         # 스크롤 딜레이 설정
         ttk.Label(settings_frame, text="스크롤 딜레이(초):").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
@@ -196,7 +237,7 @@ class BlogLikeAutomationGUI:
         
         # 제어 버튼 프레임
         control_frame = ttk.Frame(main_frame)
-        control_frame.grid(row=5, column=0, columnspan=3, pady=(0, 10))
+        control_frame.grid(row=6, column=0, columnspan=3, pady=(0, 10))
         
         # 시작 버튼
         self.start_button = ttk.Button(control_frame, text="기본 계정 시작", command=self.start_automation,
@@ -213,7 +254,7 @@ class BlogLikeAutomationGUI:
         
         # 진행 상황 프레임
         progress_frame = ttk.LabelFrame(main_frame, text="진행 상황", padding="10")
-        progress_frame.grid(row=6, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        progress_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
         
         # 진행률 바
         self.progress_var = tk.DoubleVar()
@@ -233,7 +274,7 @@ class BlogLikeAutomationGUI:
         
         # 로그 탭 프레임
         log_notebook = ttk.Notebook(main_frame)
-        log_notebook.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        log_notebook.grid(row=8, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         
         # 기본 로그 탭
         self.log_frame = ttk.Frame(log_notebook)
@@ -251,7 +292,7 @@ class BlogLikeAutomationGUI:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(7, weight=1)
+        main_frame.rowconfigure(8, weight=1)
         login_frame.columnconfigure(1, weight=1)
         login_frame.columnconfigure(3, weight=1)
         url_frame.columnconfigure(1, weight=1)
@@ -274,6 +315,130 @@ class BlogLikeAutomationGUI:
         self.log_text.see(tk.END)
         
         self.root.update_idletasks()
+    
+    def load_config(self):
+        """config.json 파일에서 설정을 로드합니다."""
+        try:
+            if not os.path.exists(self.config_file):
+                self.log_message(f"설정 파일을 찾을 수 없습니다: {self.config_file}")
+                self.log_message("기본 계정들을 추가합니다.")
+                self.add_default_accounts()
+                return
+            
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            self.log_message(f"설정 파일 로드 완료: {self.config_file}")
+            
+            # 기존 계정 목록 초기화
+            self.accounts.clear()
+            self.account_listbox.delete(0, tk.END)
+            
+            # 계정 정보 로드
+            if 'accounts' in config:
+                for account_data in config['accounts']:
+                    if account_data.get('enabled', True):  # enabled가 True인 계정만 로드
+                        self.add_account_from_config(account_data)
+            
+            # 기본 계정 정보 업데이트 (첫 번째 계정으로)
+            if self.accounts:
+                first_account = self.accounts[0]
+                self.id_var.set(first_account['user_id'])
+                self.pw_var.set(first_account['password'])
+                self.url_var.set(first_account['blog_url'])
+                self.start_page_var.set(str(first_account['start_page']))
+            
+            self.log_message(f"총 {len(self.accounts)}개의 계정을 로드했습니다.")
+            
+        except Exception as e:
+            self.log_message(f"설정 파일 로드 중 오류: {e}")
+            self.log_message("기본 계정들을 추가합니다.")
+            self.add_default_accounts()
+    
+    def save_config(self):
+        """현재 설정을 config.json 파일에 저장합니다."""
+        try:
+            config = {
+                "accounts": [],
+                "settings": {
+                    "window_title": "네이버 블로그 공감 자동화 프로그램",
+                    "window_size": "1200x800",
+                    "log_height": 15,
+                    "log_width": 80
+                }
+            }
+            
+            # 계정 정보 저장
+            for account in self.accounts:
+                account_config = {
+                    "enabled": True,
+                    "id": account['user_id'],
+                    "password": account['password'],
+                    "blog_url": account['blog_url'],
+                    "start_page": account['start_page']
+                }
+                config["accounts"].append(account_config)
+            
+            with open(self.config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+            
+            self.log_message(f"설정 파일 저장 완료: {self.config_file}")
+            
+        except Exception as e:
+            self.log_message(f"설정 파일 저장 중 오류: {e}")
+            messagebox.showerror("저장 오류", f"설정 저장 중 오류가 발생했습니다: {e}")
+    
+    def save_config_manual(self):
+        """수동으로 설정을 저장합니다 (메시지박스 표시)"""
+        try:
+            self.save_config()
+            messagebox.showinfo("저장 완료", f"설정이 {self.config_file}에 저장되었습니다.")
+        except Exception as e:
+            messagebox.showerror("저장 오류", f"설정 저장 중 오류가 발생했습니다: {e}")
+    
+    def reset_config(self):
+        """설정을 초기화합니다."""
+        if messagebox.askyesno("설정 초기화", "모든 계정 설정을 초기화하시겠습니까?"):
+            # 기존 계정 목록 초기화
+            self.accounts.clear()
+            self.account_listbox.delete(0, tk.END)
+            
+            # 기본 계정들 추가
+            self.add_default_accounts()
+            
+            self.log_message("설정이 초기화되었습니다.")
+    
+    def add_account_from_config(self, account_data):
+        """config에서 계정 정보를 추가합니다."""
+        try:
+            account_id = f"{account_data['id']}_{len(self.accounts)}"
+            
+            # 계정 정보 저장
+            account = {
+                'id': account_id,
+                'user_id': account_data['id'],
+                'password': account_data['password'],
+                'blog_url': account_data.get('blog_url', 'https://blog.naver.com/'),
+                'start_page': account_data.get('start_page', 1),
+                'is_running': False,
+                'driver': None,
+                'wait': None,
+                'like_count': 0,
+                'skipped_count': 0,
+                'current_page': 1
+            }
+            self.accounts.append(account)
+            
+            # 계정 목록 업데이트
+            self.account_listbox.insert(tk.END, f"{account_data['id']} - {account['blog_url']} [대기중]")
+            
+            # 계정별 로그 탭 생성
+            self.create_account_log_tab(account_id, account_data['id'])
+            
+            self.log_message(f"계정 로드됨: {account_data['id']}")
+            
+        except Exception as e:
+            self.log_message(f"계정 로드 중 오류: {e}")
     
     def add_account(self):
         """새 계정 추가"""
@@ -308,6 +473,9 @@ class BlogLikeAutomationGUI:
             self.create_account_log_tab(account_id, account_info['id'])
             
             self.log_message(f"계정 추가됨: {account_info['id']}")
+            
+            # 설정 자동 저장
+            self.save_config()
     
     def update_account_status(self, account, status):
         """계정 상태 업데이트"""
@@ -352,6 +520,9 @@ class BlogLikeAutomationGUI:
             del self.account_log_texts[account_id]
         
         self.log_message(f"계정 삭제됨: {account['user_id']}")
+        
+        # 설정 자동 저장
+        self.save_config()
     
     def create_account_log_tab(self, account_id, user_id):
         """계정별 로그 탭 생성"""
@@ -361,38 +532,107 @@ class BlogLikeAutomationGUI:
         self.account_log_texts[account_id] = None
     
     def start_all_accounts(self):
-        """모든 계정 시작 (5초 간격)"""
+        """모든 계정 순차 시작 (보안문자 완료 후 다음 계정)"""
         if not self.accounts:
             messagebox.showwarning("경고", "추가된 계정이 없습니다.")
             return
         
-        # 5초 간격으로 계정을 시작하는 스레드 생성
+        # 순차적으로 계정을 시작하는 스레드 생성
         start_thread = threading.Thread(target=self.start_accounts_with_delay, daemon=True)
         start_thread.start()
     
     def start_accounts_with_delay(self):
-        """5초 간격으로 계정들을 시작"""
+        """계정들을 순차적으로 시작 (보안문자 완료 후 다음 계정)"""
         started_count = 0
         for i, account in enumerate(self.accounts):
             if not account['is_running']:
-                # 첫 번째 계정이 아닌 경우 5초 대기
-                if i > 0:
-                    self.log_message(f"다음 계정 시작까지 5초 대기 중...")
-                    time.sleep(5)
+                self.log_message(f"계정 {account['user_id']} 시작 중...")
                 
-                thread = threading.Thread(target=self.account_automation_worker, 
-                                        args=(account,), daemon=True)
-                thread.start()
-                self.account_threads.append(thread)
+                # 계정별 자동화 작업을 메인 스레드에서 순차 실행
+                self.account_automation_worker_sequential(account)
+                
                 account['is_running'] = True
                 started_count += 1
                 self.update_account_status(account, "실행중")
-                self.log_message(f"계정 {account['user_id']} 시작됨")
+                self.log_message(f"계정 {account['user_id']} 완료됨")
+                
+                # 마지막 계정이 아닌 경우 다음 계정 시작 안내
+                if i < len(self.accounts) - 1:
+                    self.log_message(f"다음 계정 {self.accounts[i+1]['user_id']} 시작합니다...")
         
         if started_count > 0:
-            self.log_message(f"{started_count}개 계정이 5초 간격으로 시작되었습니다.")
+            self.log_message(f"{started_count}개 계정이 순차적으로 완료되었습니다.")
         else:
             self.log_message("시작할 수 있는 계정이 없습니다. (모든 계정이 이미 실행 중일 수 있음)")
+    
+    def account_automation_worker_sequential(self, account):
+        """계정별 자동화 작업 (순차 실행용)"""
+        try:
+            account['is_running'] = True
+            account_id = account['id']
+            
+            self.log_message(f"계정 {account['user_id']} 자동화 시작", account_id)
+            self.log_message(f"계정 정보 - ID: {account['user_id']}, URL: {account['blog_url']}", account_id)
+            
+            # WebDriver 설정
+            if not self.setup_account_driver(account):
+                return
+            
+            # 로그인 (보안문자 포함)
+            if not self.login_account_to_naver_sequential(account):
+                return
+            
+            # 블로그 URL 접속
+            blog_url = account['blog_url']
+            self.log_message(f"블로그 접속: {blog_url}", account_id)
+            account['driver'].get(blog_url)
+            time.sleep(3)
+            
+            # 시작 페이지로 이동
+            start_page = account['start_page']
+            if start_page > 1:
+                if not self.go_to_account_start_page(account, start_page):
+                    self.log_message(f"시작 페이지 {start_page}로 이동에 실패했습니다. 1페이지부터 시작합니다.", account_id)
+                    account['start_page'] = 1
+                    account['current_page'] = 1
+                else:
+                    self.log_message(f"시작 페이지 {start_page}로 이동 완료!", account_id)
+            else:
+                self.log_message("1페이지부터 시작합니다.", account_id)
+            
+            # 페이지별 처리
+            while account['is_running']:
+                self.log_message(f"페이지 {account['current_page']} 처리 시작...", account_id)
+                
+                # 페이지 하단까지 스크롤
+                self.scroll_account_to_bottom(account)
+                
+                # 공감 버튼 클릭
+                clicked_likes = self.find_and_click_account_like_buttons(account)
+                
+                # 다음 페이지로 이동
+                if not self.go_to_account_next_page(account):
+                    self.log_message("더 이상 페이지가 없습니다.", account_id)
+                    break
+                
+                # 페이지 간 대기
+                time.sleep(2)
+            
+            # 완료
+            self.log_message(f"자동화 완료! 총 {account['like_count']}개의 공감을 클릭하고, {account['skipped_count']}개를 건너뛰었습니다.", account_id)
+            self.update_account_status(account, "완료")
+            
+        except Exception as e:
+            self.log_message(f"계정 {account['user_id']} 자동화 작업 오류: {e}", account_id)
+            self.update_account_status(account, "오류")
+        finally:
+            account['is_running'] = False
+            if account['driver']:
+                try:
+                    account['driver'].quit()
+                except:
+                    pass
+                account['driver'] = None
     
     def stop_all_accounts(self):
         """모든 계정 중지"""
@@ -533,34 +773,106 @@ class BlogLikeAutomationGUI:
             self.log_message(f"계정 {account['user_id']} 네이버 로그인 시작...", account['id'])
             self.log_message(f"사용할 ID: {account['user_id']}, 비밀번호: {'*' * len(account['password'])}", account['id'])
             
+            # 네이버 로그인 페이지 접속
             account['driver'].get("https://nid.naver.com/nidlogin.login")
-            account['wait'].until(EC.presence_of_element_located((By.ID, "id")))
+            time.sleep(2)
             
             user_id = account['user_id']
             password = account['password']
             
-            # ID 입력 (pyperclip 대신 직접 입력)
-            id_field = account['wait'].until(EC.element_to_be_clickable((By.ID, "id")))
-            id_field.clear()
-            id_field.send_keys(user_id)
+            # ID 입력
+            self.log_message(f"계정 {account['user_id']} 아이디 입력 중...", account['id'])
+            id_input = WebDriverWait(account['driver'], 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "#id"))
+            )
+            pyperclip.copy(user_id)
+            id_input.click()
+            time.sleep(0.5)
+            id_input.send_keys(Keys.CONTROL + 'v')
             time.sleep(1)
             
-            # 비밀번호 입력 (pyperclip 대신 직접 입력)
-            pw_field = account['driver'].find_element(By.ID, "pw")
-            pw_field.clear()
-            pw_field.send_keys(password)
+            # 비밀번호 입력
+            self.log_message(f"계정 {account['user_id']} 비밀번호 입력 중...", account['id'])
+            pw_input = account['driver'].find_element(By.CSS_SELECTOR, "#pw")
+            pyperclip.copy(password)
+            pw_input.click()
+            time.sleep(0.5)
+            pw_input.send_keys(Keys.CONTROL + 'v')
             time.sleep(1)
             
             # 로그인 버튼 클릭
-            login_button = account['wait'].until(EC.element_to_be_clickable((By.ID, "log.login")))
+            self.log_message(f"계정 {account['user_id']} 로그인 버튼 클릭 중...", account['id'])
+            login_button = account['driver'].find_element(By.CSS_SELECTOR, "#log\\.login")
             login_button.click()
             time.sleep(3)
             
-            # 로그인 결과 확인 및 보안문자 대기
-            return self.wait_for_login_success(account)
+            # 로그인 결과 확인
+            current_url = account['driver'].current_url
+            self.log_message(f"계정 {account['user_id']} 현재 URL: {current_url}", account['id'])
+            
+            if "naver.com" not in current_url:
+                self.log_message(f"계정 {account['user_id']} 로그인 실패!", account['id'])
+                return False
+            
+            self.log_message(f"계정 {account['user_id']} 네이버 로그인 성공!", account['id'])
+            return True
                 
         except Exception as e:
-            self.log_message(f"계정 {account['user_id']} 로그인 오류: {e}", account['id'])
+            self.log_message(f"계정 {account['user_id']} 로그인 중 오류: {e}", account['id'])
+            return False
+    
+    def login_account_to_naver_sequential(self, account):
+        """계정별 네이버 로그인 (순차 실행용 - 보안문자 완료까지 대기)"""
+        try:
+            self.log_message(f"계정 {account['user_id']} 네이버 로그인 시작...", account['id'])
+            self.log_message(f"사용할 ID: {account['user_id']}, 비밀번호: {'*' * len(account['password'])}", account['id'])
+            
+            # 네이버 로그인 페이지 접속
+            account['driver'].get("https://nid.naver.com/nidlogin.login")
+            time.sleep(2)
+            
+            user_id = account['user_id']
+            password = account['password']
+            
+            # ID 입력
+            self.log_message(f"계정 {account['user_id']} 아이디 입력 중...", account['id'])
+            id_input = WebDriverWait(account['driver'], 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "#id"))
+            )
+            pyperclip.copy(user_id)
+            id_input.click()
+            time.sleep(0.5)
+            id_input.send_keys(Keys.CONTROL + 'v')
+            time.sleep(1)
+            
+            # 비밀번호 입력
+            self.log_message(f"계정 {account['user_id']} 비밀번호 입력 중...", account['id'])
+            pw_input = account['driver'].find_element(By.CSS_SELECTOR, "#pw")
+            pyperclip.copy(password)
+            pw_input.click()
+            time.sleep(0.5)
+            pw_input.send_keys(Keys.CONTROL + 'v')
+            time.sleep(1)
+            
+            # 로그인 버튼 클릭
+            self.log_message(f"계정 {account['user_id']} 로그인 버튼 클릭 중...", account['id'])
+            login_button = account['driver'].find_element(By.CSS_SELECTOR, "#log\\.login")
+            login_button.click()
+            time.sleep(3)
+            
+            # 로그인 결과 확인
+            current_url = account['driver'].current_url
+            self.log_message(f"계정 {account['user_id']} 현재 URL: {current_url}", account['id'])
+            
+            if "naver.com" not in current_url:
+                self.log_message(f"계정 {account['user_id']} 로그인 실패!", account['id'])
+                return False
+            
+            self.log_message(f"계정 {account['user_id']} 네이버 로그인 성공!", account['id'])
+            return True
+                
+        except Exception as e:
+            self.log_message(f"계정 {account['user_id']} 로그인 중 오류: {e}", account['id'])
             return False
     
     def wait_for_login_success(self, account):
@@ -626,40 +938,122 @@ class BlogLikeAutomationGUI:
         except Exception as e:
             self.log_message(f"계정 {account['user_id']} 로그인 대기 중 오류: {e}", account_id)
             return False
+    
+    def wait_for_login_success_sequential(self, account):
+        """로그인 성공까지 대기 (순차 실행용 - 보안문자 완료까지 대기)"""
+        try:
+            account_id = account['id']
+            max_wait_time = 600  # 최대 10분 대기 (보안문자 입력 시간 고려)
+            check_interval = 2   # 2초마다 확인
+            waited_time = 0
+            
+            self.log_message(f"계정 {account['user_id']} 로그인 결과 확인 중... (보안문자 입력을 기다립니다)", account_id)
+            
+            while waited_time < max_wait_time:
+                current_url = account['driver'].current_url
+                
+                # 로그인 성공 확인 (nid.naver.com이 URL에 없으면 성공)
+                if "nid.naver.com" not in current_url:
+                    self.log_message(f"계정 {account['user_id']} 네이버 로그인 성공!", account_id)
+                    return True
+                
+                # 보안문자나 추가 인증이 필요한 경우 확인
+                try:
+                    # 보안문자 입력 필드가 있는지 확인
+                    captcha_input = account['driver'].find_elements(By.CSS_SELECTOR, "input[name='captcha']")
+                    if captcha_input:
+                        self.log_message(f"계정 {account['user_id']} 보안문자 입력이 필요합니다. 입력을 기다리는 중...", account_id)
+                        time.sleep(check_interval)
+                        waited_time += check_interval
+                        continue
+                    
+                    # 추가 인증이 필요한 경우 (휴대폰 인증 등)
+                    auth_elements = account['driver'].find_elements(By.CSS_SELECTOR, ".auth_area, .verify_area, .security_area")
+                    if auth_elements:
+                        self.log_message(f"계정 {account['user_id']} 추가 인증이 필요합니다. 인증을 기다리는 중...", account_id)
+                        time.sleep(check_interval)
+                        waited_time += check_interval
+                        continue
+                    
+                    # 에러 메시지가 있는지 확인
+                    error_elements = account['driver'].find_elements(By.CSS_SELECTOR, ".error_message, .err_msg, .alert")
+                    if error_elements:
+                        error_text = error_elements[0].text.strip()
+                        if error_text:
+                            self.log_message(f"계정 {account['user_id']} 로그인 오류: {error_text}", account_id)
+                            # 오류가 있어도 계속 대기 (사용자가 수정할 수 있도록)
+                    
+                except Exception as e:
+                    # 요소 찾기 실패는 무시하고 계속 진행
+                    pass
+                
+                # 2초 대기 후 다시 확인
+                time.sleep(check_interval)
+                waited_time += check_interval
+                
+                # 30초마다 상태 메시지 출력
+                if waited_time % 30 == 0:
+                    self.log_message(f"계정 {account['user_id']} 로그인 대기 중... ({waited_time}초 경과)", account_id)
+            
+            # 최대 대기 시간 초과
+            self.log_message(f"계정 {account['user_id']} 로그인 대기 시간 초과 (10분)", account_id)
+            return False
+            
+        except Exception as e:
+            self.log_message(f"계정 {account['user_id']} 로그인 대기 중 오류: {e}", account_id)
+            return False
             
     def login_to_naver(self):
         """네이버 로그인"""
         try:
             self.log_message("네이버 로그인 시작...")
             
+            # 네이버 로그인 페이지 접속
             self.driver.get("https://nid.naver.com/nidlogin.login")
-            self.wait.until(EC.presence_of_element_located((By.ID, "id")))
+            time.sleep(2)
             
             user_id = self.id_var.get()
             password = self.pw_var.get()
             
-            # ID 입력 (pyperclip 대신 직접 입력)
-            id_field = self.wait.until(EC.element_to_be_clickable((By.ID, "id")))
-            id_field.clear()
-            id_field.send_keys(user_id)
+            # ID 입력
+            self.log_message("아이디 입력 중...")
+            id_input = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "#id"))
+            )
+            pyperclip.copy(user_id)
+            id_input.click()
+            time.sleep(0.5)
+            id_input.send_keys(Keys.CONTROL + 'v')
             time.sleep(1)
             
-            # 비밀번호 입력 (pyperclip 대신 직접 입력)
-            pw_field = self.driver.find_element(By.ID, "pw")
-            pw_field.clear()
-            pw_field.send_keys(password)
+            # 비밀번호 입력
+            self.log_message("비밀번호 입력 중...")
+            pw_input = self.driver.find_element(By.CSS_SELECTOR, "#pw")
+            pyperclip.copy(password)
+            pw_input.click()
+            time.sleep(0.5)
+            pw_input.send_keys(Keys.CONTROL + 'v')
             time.sleep(1)
             
             # 로그인 버튼 클릭
-            login_button = self.wait.until(EC.element_to_be_clickable((By.ID, "log.login")))
+            self.log_message("로그인 버튼 클릭 중...")
+            login_button = self.driver.find_element(By.CSS_SELECTOR, "#log\\.login")
             login_button.click()
             time.sleep(3)
             
-            # 로그인 결과 확인 및 보안문자 대기
-            return self.wait_for_basic_login_success()
+            # 로그인 결과 확인
+            current_url = self.driver.current_url
+            self.log_message(f"현재 URL: {current_url}")
+            
+            if "naver.com" not in current_url:
+                self.log_message("로그인 실패!")
+                return False
+            
+            self.log_message("네이버 로그인 성공!")
+            return True
                 
         except Exception as e:
-            self.log_message(f"로그인 오류: {e}")
+            self.log_message(f"로그인 중 오류: {e}")
             return False
     
     def wait_for_basic_login_success(self):
@@ -1553,10 +1947,14 @@ class BlogLikeAutomationGUI:
                 self.stop_requested = True
                 if self.driver:
                     self.driver.quit()
+                # 설정 자동 저장
+                self.save_config()
                 self.root.destroy()
         else:
             if self.driver:
                 self.driver.quit()
+            # 설정 자동 저장
+            self.save_config()
             self.root.destroy()
 
 class AccountDialog:
