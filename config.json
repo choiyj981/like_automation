@@ -2,6 +2,13 @@
   "accounts": [
     {
       "enabled": true,
+      "id": "minaci_",
+      "password": "alsdk4376!",
+      "blog_url": "https://blog.naver.com/",
+      "start_page": 1
+    },
+    {
+      "enabled": true,
       "id": "cms045757",
       "password": "!7476458aA",
       "blog_url": "https://blog.naver.com/",
@@ -11,13 +18,6 @@
       "enabled": true,
       "id": "chldudwns645",
       "password": "981749aA",
-      "blog_url": "https://blog.naver.com/",
-      "start_page": 1
-    },
-    {
-      "enabled": true,
-      "id": "minaci_",
-      "password": "alsdk4376!",
       "blog_url": "https://blog.naver.com/",
       "start_page": 1
     }
