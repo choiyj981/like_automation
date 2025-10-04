@@ -532,36 +532,37 @@ class BlogLikeAutomationGUI:
         self.account_log_texts[account_id] = None
     
     def start_all_accounts(self):
-        """모든 계정 순차 시작 (보안문자 완료 후 다음 계정)"""
+        """모든 계정 5초 딜레이로 독립 실행 시작"""
         if not self.accounts:
             messagebox.showwarning("경고", "추가된 계정이 없습니다.")
             return
         
-        # 순차적으로 계정을 시작하는 스레드 생성
+        # 5초 간격으로 계정을 독립적으로 시작하는 스레드 생성
         start_thread = threading.Thread(target=self.start_accounts_with_delay, daemon=True)
         start_thread.start()
     
     def start_accounts_with_delay(self):
-        """계정들을 순차적으로 시작 (보안문자 완료 후 다음 계정)"""
+        """5초 간격으로 계정들을 독립적으로 시작 (동시 실행)"""
         started_count = 0
         for i, account in enumerate(self.accounts):
             if not account['is_running']:
-                self.log_message(f"계정 {account['user_id']} 시작 중...")
+                # 첫 번째 계정이 아닌 경우 5초 대기
+                if i > 0:
+                    self.log_message(f"다음 계정 시작까지 5초 대기 중...")
+                    time.sleep(5)
                 
-                # 계정별 자동화 작업을 메인 스레드에서 순차 실행
-                self.account_automation_worker_sequential(account)
-                
+                # 각 계정을 독립적인 스레드에서 실행
+                thread = threading.Thread(target=self.account_automation_worker, 
+                                        args=(account,), daemon=True)
+                thread.start()
+                self.account_threads.append(thread)
                 account['is_running'] = True
                 started_count += 1
                 self.update_account_status(account, "실행중")
-                self.log_message(f"계정 {account['user_id']} 완료됨")
-                
-                # 마지막 계정이 아닌 경우 다음 계정 시작 안내
-                if i < len(self.accounts) - 1:
-                    self.log_message(f"다음 계정 {self.accounts[i+1]['user_id']} 시작합니다...")
+                self.log_message(f"계정 {account['user_id']} 시작됨 (독립 세션)")
         
         if started_count > 0:
-            self.log_message(f"{started_count}개 계정이 순차적으로 완료되었습니다.")
+            self.log_message(f"{started_count}개 계정이 5초 간격으로 독립 실행되었습니다.")
         else:
             self.log_message("시작할 수 있는 계정이 없습니다. (모든 계정이 이미 실행 중일 수 있음)")
     
@@ -724,7 +725,7 @@ class BlogLikeAutomationGUI:
                 account['driver'] = None
         
     def setup_account_driver(self, account):
-        """계정별 Chrome WebDriver 설정"""
+        """계정별 Chrome WebDriver 설정 (독립 세션)"""
         try:
             chrome_options = Options()
             chrome_options.add_argument("--no-sandbox")
@@ -734,11 +735,12 @@ class BlogLikeAutomationGUI:
             chrome_options.add_experimental_option('useAutomationExtension', False)
             chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
             
+            # 각 계정별로 독립적인 WebDriver 인스턴스 생성
             account['driver'] = webdriver.Chrome(options=chrome_options)
             account['driver'].execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             account['wait'] = WebDriverWait(account['driver'], 10)
             
-            self.log_message(f"계정 {account['user_id']} Chrome WebDriver 설정 완료", account['id'])
+            self.log_message(f"계정 {account['user_id']} 독립 WebDriver 세션 생성 완료", account['id'])
             return True
             
         except Exception as e:

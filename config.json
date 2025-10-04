@@ -1,0 +1,31 @@
+{
+  "accounts": [
+    {
+      "enabled": true,
+      "id": "cms045757",
+      "password": "!7476458aA",
+      "blog_url": "https://blog.naver.com/",
+      "start_page": 1
+    },
+    {
+      "enabled": true,
+      "id": "chldudwns645",
+      "password": "981749aA",
+      "blog_url": "https://blog.naver.com/",
+      "start_page": 1
+    },
+    {
+      "enabled": true,
+      "id": "minaci_",
+      "password": "alsdk4376!",
+      "blog_url": "https://blog.naver.com/",
+      "start_page": 1
+    }
+  ],
+  "settings": {
+    "window_title": "네이버 블로그 공감 자동화 프로그램",
+    "window_size": "1200x800",
+    "log_height": 15,
+    "log_width": 80
+  }
+}
