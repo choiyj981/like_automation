@@ -85,6 +85,158 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
 from selenium.webdriver.common.action_chains import ActionChains
 
+# 현대적 Apple 스타일 색상
+class Colors:
+    # 라이트 모드 (iOS 17+ 스타일)
+    BACKGROUND = "#F2F2F7"
+    CARD = "#FFFFFF"
+    PRIMARY_TEXT = "#000000"
+    SECONDARY_TEXT = "#8E8E93"
+    DIVIDER = "#C6C6C8"
+    ACTION_BLUE = "#007AFF"
+    ACTION_BLUE_HOVER = "#0051D5"
+    ACTION_BLUE_DISABLED = "#AEAEB2"
+    SUCCESS = "#30D158"
+    WARNING = "#FF9F0A"
+    ERROR = "#FF453A"
+
+# 현대적 Apple 스타일 폰트
+class Fonts:
+    # Windows 현대적 폰트 (Inter, Pretendard 스타일)
+    LARGE_TITLE_WIN = ("Inter", 32, "bold")
+    TITLE_WIN = ("Inter", 24, "bold")
+    HEADLINE_WIN = ("Inter", 20, "bold")
+    BODY_WIN = ("Inter", 16, "normal")
+    CALL_OUT_WIN = ("Inter", 15, "normal")
+    SUBHEAD_WIN = ("Inter", 14, "normal")
+    FOOTNOTE_WIN = ("Inter", 12, "normal")
+    CAPTION_WIN = ("Inter", 11, "normal")
+    
+    # 폰트 폴백 시스템
+    @staticmethod
+    def get_font(font_type):
+        try:
+            return getattr(Fonts, font_type)
+        except AttributeError:
+            return ("Segoe UI", 14, "normal")
+
+class AppleStyle:
+    @staticmethod
+    def configure_styles():
+        """현대적 Apple 스타일 설정"""
+        style = ttk.Style()
+        
+        # 기본 테마 설정
+        style.theme_use('clam')
+        
+        # 프레임 스타일
+        style.configure('Card.TFrame', 
+                       background=Colors.CARD,
+                       relief='flat',
+                       borderwidth=0)
+        
+        # 라벨 스타일
+        style.configure('Title.TLabel',
+                       background=Colors.CARD,
+                       foreground=Colors.PRIMARY_TEXT,
+                       font=Fonts.get_font('TITLE_WIN'))
+        
+        style.configure('Headline.TLabel',
+                       background=Colors.CARD,
+                       foreground=Colors.PRIMARY_TEXT,
+                       font=Fonts.get_font('HEADLINE_WIN'))
+        
+        style.configure('Body.TLabel',
+                       background=Colors.CARD,
+                       foreground=Colors.PRIMARY_TEXT,
+                       font=Fonts.get_font('BODY_WIN'))
+        
+        style.configure('Secondary.TLabel',
+                       background=Colors.CARD,
+                       foreground=Colors.SECONDARY_TEXT,
+                       font=Fonts.get_font('SUBHEAD_WIN'))
+        
+        # 버튼 스타일
+        style.configure('Primary.TButton',
+                       background=Colors.ACTION_BLUE,
+                       foreground='white',
+                       font=Fonts.get_font('BODY_WIN'),
+                       relief='flat',
+                       borderwidth=0,
+                       focuscolor='none')
+        
+        style.map('Primary.TButton',
+                 background=[('active', Colors.ACTION_BLUE_HOVER),
+                           ('disabled', Colors.ACTION_BLUE_DISABLED)])
+        
+        style.configure('Secondary.TButton',
+                       background=Colors.CARD,
+                       foreground=Colors.ACTION_BLUE,
+                       font=Fonts.get_font('BODY_WIN'),
+                       relief='flat',
+                       borderwidth=1,
+                       focuscolor='none')
+        
+        style.map('Secondary.TButton',
+                 background=[('active', Colors.BACKGROUND)])
+        
+        # 엔트리 스타일
+        style.configure('Modern.TEntry',
+                       fieldbackground=Colors.CARD,
+                       foreground=Colors.PRIMARY_TEXT,
+                       font=Fonts.get_font('BODY_WIN'),
+                       relief='flat',
+                       borderwidth=1,
+                       focuscolor=Colors.ACTION_BLUE)
+        
+        # 체크박스 스타일
+        style.configure('Modern.TCheckbutton',
+                       background=Colors.CARD,
+                       foreground=Colors.PRIMARY_TEXT,
+                       font=Fonts.get_font('BODY_WIN'),
+                       focuscolor='none')
+        
+        # 프로그레스바 스타일
+        style.configure('Modern.Horizontal.TProgressbar',
+                       background=Colors.ACTION_BLUE,
+                       troughcolor=Colors.DIVIDER,
+                       borderwidth=0,
+                       lightcolor=Colors.ACTION_BLUE,
+                       darkcolor=Colors.ACTION_BLUE)
+        
+        # 노트북 스타일
+        style.configure('Modern.TNotebook',
+                       background=Colors.CARD,
+                       borderwidth=0)
+        
+        style.configure('Modern.TNotebook.Tab',
+                       background=Colors.BACKGROUND,
+                       foreground=Colors.SECONDARY_TEXT,
+                       font=Fonts.get_font('SUBHEAD_WIN'),
+                       padding=[20, 10],
+                       borderwidth=0)
+        
+        style.map('Modern.TNotebook.Tab',
+                 background=[('selected', Colors.CARD),
+                           ('active', Colors.BACKGROUND)],
+                 foreground=[('selected', Colors.PRIMARY_TEXT),
+                           ('active', Colors.ACTION_BLUE)])
+    
+    @staticmethod
+    def create_modern_checkbox(parent, text, variable, **kwargs):
+        """현대적인 체크박스 생성"""
+        frame = tk.Frame(parent, bg=Colors.CARD)
+        
+        # 체크박스
+        checkbox = ttk.Checkbutton(frame, 
+                                 text=text, 
+                                 variable=variable,
+                                 style='Modern.TCheckbutton',
+                                 **kwargs)
+        checkbox.pack(side=tk.LEFT, padx=(0, 10))
+        
+        return frame, checkbox
+
 # Windows 콘솔 한글 인코딩 설정
 if sys.platform.startswith('win'):
     import codecs
@@ -103,8 +255,11 @@ class BlogLikeAutomationGUI:
         """GUI 초기화"""
         self.root = tk.Tk()
         self.root.title("네이버 블로그 공감 자동화 프로그램")
-        self.root.geometry("1200x800")
-        self.root.configure(bg='#f0f0f0')
+        self.root.geometry("1400x900")
+        self.root.configure(bg=Colors.BACKGROUND)
+        
+        # Apple 스타일 적용
+        AppleStyle.configure_styles()
         
         # 변수 초기화
         self.driver = None
@@ -119,6 +274,7 @@ class BlogLikeAutomationGUI:
         self.current_page = 1
         self.skipped_count = 0
         self.start_page = 1
+        self.end_page = None  # None이면 끝까지
         
         # 다중 계정 관리
         self.accounts = []
@@ -127,6 +283,9 @@ class BlogLikeAutomationGUI:
         
         # 설정 파일 경로
         self.config_file = 'config.json'
+        
+        # config 초기화
+        self.config = {}
         
         self.setup_ui()
         
@@ -140,19 +299,22 @@ class BlogLikeAutomationGUI:
                 'id': 'cms045757',
                 'password': '!7476458aA',
                 'blog_url': 'https://blog.naver.com/',
-                'start_page': 1
+                'start_page': 1,
+                'end_page': None
             },
             {
                 'id': 'chldudwns645',
                 'password': '981749aA',
                 'blog_url': 'https://blog.naver.com/',
-                'start_page': 1
+                'start_page': 1,
+                'end_page': None
             },
             {
                 'id': 'minaci_',
                 'password': '민아4376!',
                 'blog_url': 'https://blog.naver.com/',
-                'start_page': 1
+                'start_page': 1,
+                'end_page': None
             }
         ]
         
@@ -161,114 +323,411 @@ class BlogLikeAutomationGUI:
     
         
     def setup_ui(self):
-        """UI 구성"""
-        # 메인 프레임
-        main_frame = ttk.Frame(self.root, padding="20")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        """현대적 Apple 스타일 UI 구성"""
+        # 메인 컨테이너 (스크롤 가능)
+        self.create_scrollable_container()
+        
+        # 헤더 섹션
+        self.create_header()
+        
+        # 계정 관리 섹션
+        self.create_account_section()
+        
+        # 설정 섹션
+        self.create_settings_section()
+        
+        # 제어 섹션
+        self.create_control_section()
+        
+        # 진행 상황 섹션
+        self.create_progress_section()
+        
+        # 로그 섹션
+        self.create_log_section()
+    
+    def create_scrollable_container(self):
+        """스크롤 가능한 메인 컨테이너 생성"""
+        # 메인 캔버스
+        self.main_canvas = tk.Canvas(self.root, bg=Colors.BACKGROUND, highlightthickness=0)
+        self.main_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # 스크롤바
+        self.scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=self.main_canvas.yview)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.main_canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        # 스크롤 가능한 프레임
+        self.scrollable_frame = ttk.Frame(self.main_canvas, style='Card.TFrame')
+        self.canvas_window = self.main_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        
+        # 마우스 휠 이벤트 바인딩
+        def _on_mousewheel(event):
+            self.main_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        def _bind_to_mousewheel(event):
+            self.main_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        def _unbind_from_mousewheel(event):
+            self.main_canvas.unbind_all("<MouseWheel>")
+        
+        self.main_canvas.bind('<Enter>', _bind_to_mousewheel)
+        self.main_canvas.bind('<Leave>', _unbind_from_mousewheel)
+        
+        # 프레임 크기 업데이트
+        def _on_frame_configure(event):
+            self.main_canvas.configure(scrollregion=self.main_canvas.bbox("all"))
+        
+        self.scrollable_frame.bind('<Configure>', _on_frame_configure)
+    
+    def create_header(self):
+        """헤더 섹션 생성"""
+        header_frame = ttk.Frame(self.scrollable_frame, style='Card.TFrame', padding="20")
+        header_frame.pack(fill=tk.X, padx=15, pady=(10, 0))
         
         # 제목
-        title_label = ttk.Label(main_frame, text="네이버 블로그 공감 자동화 프로그램 (다중 계정 지원)", 
-                               font=('Arial', 16, 'bold'))
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
+        title_label = ttk.Label(header_frame, 
+                               text="네이버 블로그 공감 자동화", 
+                               style='Title.TLabel')
+        title_label.pack(anchor=tk.W)
         
-        # 계정 관리 프레임
-        account_frame = ttk.LabelFrame(main_frame, text="계정 관리", padding="10")
-        account_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        # 부제목
+        subtitle_label = ttk.Label(header_frame, 
+                                  text="다중 계정 지원 • 현대적 UI", 
+                                  style='Secondary.TLabel')
+        subtitle_label.pack(anchor=tk.W, pady=(2, 0))
         
-        # 계정 추가/삭제 버튼
-        ttk.Button(account_frame, text="계정 추가", command=self.add_account).grid(row=0, column=0, padx=(0, 10))
-        ttk.Button(account_frame, text="계정 삭제", command=self.remove_account).grid(row=0, column=1, padx=(0, 10))
-        ttk.Button(account_frame, text="모든 계정 시작", command=self.start_all_accounts).grid(row=0, column=2, padx=(0, 10))
-        ttk.Button(account_frame, text="모든 계정 중지", command=self.stop_all_accounts).grid(row=0, column=3)
+    def create_account_section(self):
+        """계정 관리 섹션 생성 (서로이웃_사전필터링.py 스타일)"""
+        # 계정 관리 카드
+        account_card = ttk.Frame(self.scrollable_frame, style='Card.TFrame', padding="15")
+        account_card.pack(fill=tk.X, padx=15, pady=10)
         
-        # 설정 관리 버튼
-        ttk.Button(account_frame, text="설정 저장", command=self.save_config_manual).grid(row=1, column=0, padx=(0, 10), pady=(5, 0))
-        ttk.Button(account_frame, text="설정 불러오기", command=self.load_config).grid(row=1, column=1, padx=(0, 10), pady=(5, 0))
-        ttk.Button(account_frame, text="설정 초기화", command=self.reset_config).grid(row=1, column=2, pady=(5, 0))
+        # 섹션 제목
+        section_title = ttk.Label(account_card, text="계정 설정 (config.json 기반)", style='Headline.TLabel')
+        section_title.pack(anchor=tk.W, pady=(0, 15))
         
-        # 계정 목록 (시작 페이지 표시 포함)
-        self.account_listbox = tk.Listbox(account_frame, height=6)
-        self.account_listbox.grid(row=2, column=0, columnspan=4, sticky=(tk.W, tk.E), pady=(10, 0))
+        # 툴바 프레임
+        toolbar_frame = ttk.Frame(account_card, style='Card.TFrame')
+        toolbar_frame.pack(fill=tk.X, pady=(0, 15))
         
-        # 설정 프레임
-        settings_frame = ttk.LabelFrame(main_frame, text="설정", padding="10")
-        settings_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        # 설정 저장/불러오기 버튼
+        ttk.Button(toolbar_frame, text="💾 설정 저장", command=self.save_config_manual, 
+                  style='Secondary.TButton').pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(toolbar_frame, text="📁 설정 불러오기", command=self.load_config, 
+                  style='Secondary.TButton').pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(toolbar_frame, text="🔄 설정 초기화", command=self.reset_config, 
+                  style='Secondary.TButton').pack(side=tk.LEFT, padx=(0, 8))
         
-        # 스크롤 딜레이 설정
-        ttk.Label(settings_frame, text="스크롤 딜레이(초):").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        # 계정 그리드 생성
+        self.create_account_grid(account_card)
+        
+        # 계정 관련 변수 초기화
+        self.accounts_data = []
+        self.selected_accounts = []
+        self.account_checkboxes = {}
+        self.account_checkbox_vars = {}
+    
+    def create_account_grid(self, parent):
+        """계정 설정 그리드 생성 (서로이웃_사전필터링.py와 동일한 구조)"""
+        # 그리드 컨테이너
+        grid_frame = ttk.Frame(parent, style='Card.TFrame')
+        grid_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        # 헤더 행
+        headers = ["실행", "계정", "아이디", "비밀번호", "블로그 URL", "시작 페이지", "끝 페이지"]
+        for i, header in enumerate(headers):
+            header_label = ttk.Label(grid_frame, text=header, style='Secondary.TLabel')
+            header_label.grid(row=0, column=i, padx=8, pady=(0, 8), sticky=tk.W)
+        
+        # 계정 1
+        self.create_account_row(grid_frame, 1, "계정 1")
+        
+        # 계정 2
+        self.create_account_row(grid_frame, 2, "계정 2")
+        
+        # 계정 3
+        self.create_account_row(grid_frame, 3, "계정 3")
+        
+        # 그리드 컬럼 가중치 설정
+        for i in range(7):
+            grid_frame.columnconfigure(i, weight=1)
+    
+    def create_account_row(self, parent, row, account_name):
+        """개별 계정 행 생성"""
+        # 계정 데이터 로드
+        account_data = self.config['accounts'][row-1] if self.config and len(self.config['accounts']) > row-1 else {}
+        
+        # 현대적 체크박스
+        check_var = tk.BooleanVar(value=account_data.get('enabled', row == 1))
+        setattr(self, f'account{row}_check', check_var)
+        
+        # 체크박스 프레임
+        checkbox_frame = tk.Frame(parent, bg=Colors.CARD)
+        checkbox_frame.grid(row=row, column=0, padx=8, pady=8, sticky=tk.W)
+        
+        checkbox = tk.Checkbutton(checkbox_frame, variable=check_var,
+                                 bg=Colors.CARD, fg=Colors.ACTION_BLUE,
+                                 activebackground=Colors.CARD,
+                                 activeforeground=Colors.ACTION_BLUE,
+                                 selectcolor=Colors.CARD,
+                                 relief='flat', bd=0)
+        checkbox.pack()
+        
+        # 계정 라벨
+        account_label = ttk.Label(parent, text=account_name, style='Body.TLabel')
+        account_label.grid(row=row, column=1, padx=8, pady=8, sticky=tk.W)
+        
+        # 아이디 입력
+        id_entry = ttk.Entry(parent, style='Modern.TEntry', width=15)
+        id_entry.grid(row=row, column=2, padx=8, pady=8, sticky=(tk.W, tk.E))
+        id_entry.insert(0, account_data.get('id', f'아이디{row}'))
+        setattr(self, f'account{row}_id', id_entry)
+        
+        # 비밀번호 입력
+        pw_entry = ttk.Entry(parent, style='Modern.TEntry', width=15, show="*")
+        pw_entry.grid(row=row, column=3, padx=8, pady=8, sticky=(tk.W, tk.E))
+        pw_entry.insert(0, account_data.get('password', f'비밀번호{row}'))
+        setattr(self, f'account{row}_pw', pw_entry)
+        
+        # 블로그 URL 입력
+        url_entry = ttk.Entry(parent, style='Modern.TEntry', width=20)
+        url_entry.grid(row=row, column=4, padx=8, pady=8, sticky=(tk.W, tk.E))
+        url_entry.insert(0, account_data.get('blog_url', 'https://blog.naver.com/'))
+        setattr(self, f'account{row}_url', url_entry)
+        
+        # 시작 페이지 입력
+        start_page_entry = ttk.Entry(parent, style='Modern.TEntry', width=8)
+        start_page_entry.grid(row=row, column=5, padx=8, pady=8, sticky=(tk.W, tk.E))
+        start_page_entry.insert(0, str(account_data.get('start_page', 1)))
+        setattr(self, f'account{row}_start_page', start_page_entry)
+        
+        # 끝 페이지 입력
+        end_page_entry = ttk.Entry(parent, style='Modern.TEntry', width=8)
+        end_page_entry.grid(row=row, column=6, padx=8, pady=8, sticky=(tk.W, tk.E))
+        end_page_entry.insert(0, str(account_data.get('end_page', '')))
+        setattr(self, f'account{row}_end_page', end_page_entry)
+    
+    def create_settings_section(self):
+        """설정 섹션 생성"""
+        # 설정 카드
+        settings_card = ttk.Frame(self.scrollable_frame, style='Card.TFrame', padding="15")
+        settings_card.pack(fill=tk.X, padx=15, pady=10)
+        
+        # 섹션 제목
+        section_title = ttk.Label(settings_card, text="자동화 설정", style='Headline.TLabel')
+        section_title.pack(anchor=tk.W, pady=(0, 10))
+        
+        # 설정 그리드
+        settings_grid = ttk.Frame(settings_card, style='Card.TFrame')
+        settings_grid.pack(fill=tk.X)
+        
+        # 딜레이 설정
+        delay_frame = ttk.Frame(settings_grid, style='Card.TFrame')
+        delay_frame.pack(fill=tk.X)
+        
+        # 스크롤 딜레이
+        ttk.Label(delay_frame, text="스크롤 딜레이 (초)", style='Body.TLabel').pack(side=tk.LEFT, padx=(0, 8))
         self.scroll_delay_var = tk.StringVar(value="2")
-        scroll_delay_entry = ttk.Entry(settings_frame, textvariable=self.scroll_delay_var, width=10)
-        scroll_delay_entry.grid(row=0, column=1, sticky=tk.W, padx=(0, 20))
+        scroll_delay_entry = ttk.Entry(delay_frame, textvariable=self.scroll_delay_var, 
+                                      style='Modern.TEntry', width=6)
+        scroll_delay_entry.pack(side=tk.LEFT, padx=(0, 20))
         
-        # 클릭 딜레이 설정
-        ttk.Label(settings_frame, text="클릭 딜레이(초):").grid(row=0, column=2, sticky=tk.W, padx=(0, 5))
+        # 클릭 딜레이
+        ttk.Label(delay_frame, text="클릭 딜레이 (초)", style='Body.TLabel').pack(side=tk.LEFT, padx=(0, 8))
         self.click_delay_var = tk.StringVar(value="1")
-        click_delay_entry = ttk.Entry(settings_frame, textvariable=self.click_delay_var, width=10)
-        click_delay_entry.grid(row=0, column=3, sticky=tk.W)
+        click_delay_entry = ttk.Entry(delay_frame, textvariable=self.click_delay_var, 
+                                     style='Modern.TEntry', width=6)
+        click_delay_entry.pack(side=tk.LEFT)
+    
+    def create_control_section(self):
+        """제어 섹션 생성"""
+        # 제어 카드
+        control_card = ttk.Frame(self.scrollable_frame, style='Card.TFrame', padding="15")
+        control_card.pack(fill=tk.X, padx=15, pady=10)
         
-        # 계정 편집 버튼 추가
-        ttk.Button(account_frame, text="계정 편집", command=self.edit_account).grid(row=1, column=3, pady=(5, 0))
+        # 섹션 제목
+        section_title = ttk.Label(control_card, text="자동화 제어", style='Headline.TLabel')
+        section_title.pack(anchor=tk.W, pady=(0, 10))
         
-        
-        # 제어 버튼 프레임
-        control_frame = ttk.Frame(main_frame)
-        control_frame.grid(row=4, column=0, columnspan=3, pady=(0, 10))
+        # 버튼 프레임
+        button_frame = ttk.Frame(control_card, style='Card.TFrame')
+        button_frame.pack(fill=tk.X)
         
         # 시작 버튼
-        self.start_button = ttk.Button(control_frame, text="모든 계정 시작", command=self.start_all_accounts,
-                                      style='Accent.TButton')
-        self.start_button.grid(row=0, column=0, padx=(0, 10))
+        self.start_button = ttk.Button(button_frame, 
+                                      text="선택된 계정 시작", 
+                                      command=self.start_selected_accounts,
+                                      style='Primary.TButton')
+        self.start_button.pack(side=tk.LEFT, padx=(0, 10))
         
         # 중지 버튼
-        self.stop_button = ttk.Button(control_frame, text="모든 계정 중지", command=self.stop_all_accounts,
-                                     state='normal')
-        self.stop_button.grid(row=0, column=1, padx=(0, 10))
+        self.stop_button = ttk.Button(button_frame, 
+                                     text="모든 계정 중지", 
+                                     command=self.stop_all_accounts,
+                                     style='Secondary.TButton')
+        self.stop_button.pack(side=tk.LEFT)
+    
+    def create_progress_section(self):
+        """진행 상황 섹션 생성"""
+        # 진행 상황 카드
+        progress_card = ttk.Frame(self.scrollable_frame, style='Card.TFrame', padding="15")
+        progress_card.pack(fill=tk.X, padx=15, pady=10)
         
-        # 진행 상황 프레임
-        progress_frame = ttk.LabelFrame(main_frame, text="진행 상황", padding="10")
-        progress_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        # 섹션 제목
+        section_title = ttk.Label(progress_card, text="진행 상황", style='Headline.TLabel')
+        section_title.pack(anchor=tk.W, pady=(0, 10))
         
         # 진행률 바
         self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, 
-                                           maximum=100, length=400)
-        self.progress_bar.grid(row=0, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.progress_bar = ttk.Progressbar(progress_card, 
+                                           variable=self.progress_var, 
+                                           maximum=100, 
+                                           style='Modern.Horizontal.TProgressbar')
+        self.progress_bar.pack(fill=tk.X, pady=(0, 8))
+        
+        # 상태 정보 프레임
+        status_frame = ttk.Frame(progress_card, style='Card.TFrame')
+        status_frame.pack(fill=tk.X)
         
         # 상태 라벨
         self.status_var = tk.StringVar(value="대기 중...")
-        status_label = ttk.Label(progress_frame, textvariable=self.status_var)
-        status_label.grid(row=1, column=0, sticky=tk.W)
+        status_label = ttk.Label(status_frame, textvariable=self.status_var, style='Body.TLabel')
+        status_label.pack(side=tk.LEFT)
         
         # 통계 라벨
         self.stats_var = tk.StringVar(value="공감: 0개, 건너뜀: 0개, 페이지: 1")
-        stats_label = ttk.Label(progress_frame, textvariable=self.stats_var)
-        stats_label.grid(row=1, column=1, sticky=tk.E)
+        stats_label = ttk.Label(status_frame, textvariable=self.stats_var, style='Secondary.TLabel')
+        stats_label.pack(side=tk.RIGHT)
+    
+    def create_log_section(self):
+        """로그 섹션 생성"""
+        # 로그 카드
+        log_card = ttk.Frame(self.scrollable_frame, style='Card.TFrame', padding="15")
+        log_card.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 10))
         
-        # 로그 탭 프레임
-        log_notebook = ttk.Notebook(main_frame)
-        log_notebook.grid(row=6, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
-        
-        # 기본 로그 탭
-        self.log_frame = ttk.Frame(log_notebook)
-        log_notebook.add(self.log_frame, text="전체 로그")
+        # 섹션 제목
+        section_title = ttk.Label(log_card, text="실행 로그", style='Headline.TLabel')
+        section_title.pack(anchor=tk.W, pady=(0, 10))
         
         # 로그 텍스트 영역
-        self.log_text = scrolledtext.ScrolledText(self.log_frame, height=15, width=80)
-        self.log_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.log_text = scrolledtext.ScrolledText(log_card, 
+                                                 height=12, 
+                                                 bg=Colors.CARD,
+                                                 fg=Colors.PRIMARY_TEXT,
+                                                 font=Fonts.get_font('SUBHEAD_WIN'),
+                                                 relief='flat',
+                                                 borderwidth=1,
+                                                 wrap=tk.WORD)
+        self.log_text.pack(fill=tk.BOTH, expand=True)
         
         # 계정별 로그 탭들을 저장할 딕셔너리
         self.account_log_frames = {}
         self.account_log_texts = {}
         
-        # 그리드 가중치 설정
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(6, weight=1)
-        account_frame.columnconfigure(0, weight=1)
-        progress_frame.columnconfigure(0, weight=1)
-        self.log_frame.columnconfigure(0, weight=1)
-        self.log_frame.rowconfigure(0, weight=1)
+    def update_account_list_display(self):
+        """계정 목록 표시 업데이트 (테이블 기반에서는 불필요)"""
+        # 테이블 기반 UI에서는 이 메서드가 필요하지 않음
+        # 계정 정보는 테이블에서 직접 관리됨
+        pass
+    
+    def toggle_account_selection(self, event):
+        """계정 선택 상태 토글 (테이블 기반에서는 불필요)"""
+        # 테이블 기반 UI에서는 체크박스를 직접 클릭하여 토글
+        pass
+    
+    def update_account_selection(self):
+        """계정 선택 상태 업데이트 (테이블 기반에서는 불필요)"""
+        # 테이블 기반 UI에서는 이 메서드가 필요하지 않음
+        pass
+    
+    def select_all_accounts(self):
+        """모든 계정 선택 (테이블 기반)"""
+        for i in range(1, 4):  # 계정 1, 2, 3
+            check_var = getattr(self, f'account{i}_check', None)
+            if check_var:
+                check_var.set(True)
+    
+    def deselect_all_accounts(self):
+        """모든 계정 선택 해제 (테이블 기반)"""
+        for i in range(1, 4):  # 계정 1, 2, 3
+            check_var = getattr(self, f'account{i}_check', None)
+            if check_var:
+                check_var.set(False)
+    
+    def get_selected_accounts(self):
+        """선택된 계정들을 반환 (테이블 기반)"""
+        selected_accounts = []
+        for i in range(1, 4):  # 계정 1, 2, 3
+            check_var = getattr(self, f'account{i}_check', None)
+            id_entry = getattr(self, f'account{i}_id', None)
+            pw_entry = getattr(self, f'account{i}_pw', None)
+            url_entry = getattr(self, f'account{i}_url', None)
+            start_page_entry = getattr(self, f'account{i}_start_page', None)
+            end_page_entry = getattr(self, f'account{i}_end_page', None)
+            
+            if all([check_var, id_entry, pw_entry, url_entry, start_page_entry, end_page_entry]):
+                if check_var.get():  # 체크박스가 선택된 경우
+                    account_data = {
+                        'id': id_entry.get().strip(),  # account_automation_worker에서 사용
+                        'user_id': id_entry.get().strip(),
+                        'password': pw_entry.get().strip(),
+                        'blog_url': url_entry.get().strip(),
+                        'start_page': int(start_page_entry.get()) if start_page_entry.get().strip() else 1,
+                        'end_page': int(end_page_entry.get()) if end_page_entry.get().strip() else None,
+                        'selected': True,
+                        'is_running': False,
+                        'current_page': int(start_page_entry.get()) if start_page_entry.get().strip() else 1,
+                        'liked_count': 0,
+                        'skipped_count': 0,
+                        'driver': None,  # WebDriver 인스턴스
+                        'wait': None,   # WebDriverWait 인스턴스
+                        'status': '대기중'
+                    }
+                    if account_data['user_id'] and account_data['password']:  # 아이디와 비밀번호가 있는 경우만
+                        selected_accounts.append(account_data)
+        return selected_accounts
+    
+    def start_selected_accounts(self):
+        """선택된 계정들만 시작"""
+        self.log_message("선택된 계정 시작 버튼 클릭됨")
+        selected_accounts = self.get_selected_accounts()
+        self.log_message(f"선택된 계정 수: {len(selected_accounts)}")
+        
+        if not selected_accounts:
+            messagebox.showwarning("경고", "시작할 계정을 선택해주세요.")
+            self.log_message("선택된 계정이 없습니다.")
+            return
+        
+        self.log_message(f"선택된 계정들: {[acc['user_id'] for acc in selected_accounts]}")
+        
+        # 선택된 계정들만 5초 간격으로 시작
+        start_thread = threading.Thread(target=self.start_selected_accounts_with_delay, 
+                                      args=(selected_accounts,), daemon=True)
+        start_thread.start()
+        self.log_message("계정 시작 스레드가 시작되었습니다.")
+    
+    def start_selected_accounts_with_delay(self, selected_accounts):
+        """선택된 계정들을 5초 간격으로 시작"""
+        started_count = 0
+        for i, account in enumerate(selected_accounts):
+            # 첫 번째 계정이 아닌 경우 5초 대기
+            if i > 0:
+                self.log_message(f"다음 계정 시작까지 5초 대기 중...")
+                time.sleep(5)
+            
+            # 각 계정을 독립적인 스레드에서 실행
+            thread = threading.Thread(target=self.account_automation_worker, 
+                                    args=(account,), daemon=True)
+            thread.start()
+            self.account_threads.append(thread)
+            account['is_running'] = True
+            started_count += 1
+            self.log_message(f"계정 {account['user_id']} 시작됨 (독립 세션)")
+        
+        if started_count > 0:
+            self.log_message(f"{started_count}개 계정이 5초 간격으로 독립 실행되었습니다.")
+        else:
+            self.log_message("시작할 수 있는 계정이 없습니다.")
     
     def log_message(self, message, account_id=None):
         """로그 메시지 추가"""
@@ -287,37 +746,72 @@ class BlogLikeAutomationGUI:
         self.root.update_idletasks()
     
     def load_config(self):
-        """config.json 파일에서 설정을 로드합니다."""
+        """config.json에서 설정을 불러옵니다 (테이블 기반)."""
         try:
-            if not os.path.exists(self.config_file):
-                self.log_message(f"설정 파일을 찾을 수 없습니다: {self.config_file}")
-                self.log_message("기본 계정들을 추가합니다.")
-                self.add_default_accounts()
+            if not os.path.exists('config.json'):
+                self.log_message("config.json 파일이 없습니다. 기본 설정을 사용합니다.")
                 return
             
-            with open(self.config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
+            with open('config.json', 'r', encoding='utf-8') as f:
+                self.config = json.load(f)
             
-            self.log_message(f"설정 파일 로드 완료: {self.config_file}")
+            self.log_message("config.json에서 설정을 불러왔습니다.")
             
-            # 기존 계정 목록 초기화
-            self.accounts.clear()
-            self.account_listbox.delete(0, tk.END)
+            # 테이블에 계정 데이터 로드
+            if 'accounts' in self.config:
+                for i, account_data in enumerate(self.config['accounts'][:3]):  # 최대 3개 계정
+                    row = i + 1
+                    
+                    # 체크박스 설정
+                    check_var = getattr(self, f'account{row}_check', None)
+                    if check_var:
+                        check_var.set(account_data.get('enabled', True))
+                    
+                    # 아이디 설정
+                    id_entry = getattr(self, f'account{row}_id', None)
+                    if id_entry:
+                        id_entry.delete(0, tk.END)
+                        id_entry.insert(0, account_data.get('id', ''))
+                    
+                    # 비밀번호 설정
+                    pw_entry = getattr(self, f'account{row}_pw', None)
+                    if pw_entry:
+                        pw_entry.delete(0, tk.END)
+                        pw_entry.insert(0, account_data.get('password', ''))
+                    
+                    # 블로그 URL 설정
+                    url_entry = getattr(self, f'account{row}_url', None)
+                    if url_entry:
+                        url_entry.delete(0, tk.END)
+                        url_entry.insert(0, account_data.get('blog_url', 'https://blog.naver.com/'))
+                    
+                    # 시작 페이지 설정
+                    start_page_entry = getattr(self, f'account{row}_start_page', None)
+                    if start_page_entry:
+                        start_page_entry.delete(0, tk.END)
+                        start_page_entry.insert(0, str(account_data.get('start_page', 1)))
+                    
+                    # 끝 페이지 설정
+                    end_page_entry = getattr(self, f'account{row}_end_page', None)
+                    if end_page_entry:
+                        end_page_entry.delete(0, tk.END)
+                        end_page_entry.insert(0, str(account_data.get('end_page', '')))
             
-            # 계정 정보 로드
-            if 'accounts' in config:
-                for account_data in config['accounts']:
-                    if account_data.get('enabled', True):  # enabled가 True인 계정만 로드
-                        self.add_account_from_config(account_data)
+            # 자동화 설정 불러오기
+            if 'automation_settings' in self.config:
+                settings = self.config['automation_settings']
+                self.scroll_delay_var.set(str(settings.get('scroll_delay', 2)))
+                self.click_delay_var.set(str(settings.get('click_delay', 1)))
             
-            # 기본 계정 정보는 더 이상 사용하지 않음 (다중 계정이 주 기능)
-            
-            self.log_message(f"총 {len(self.accounts)}개의 계정을 로드했습니다.")
+            messagebox.showinfo("불러오기 완료", "설정을 config.json에서 불러왔습니다.")
             
         except Exception as e:
-            self.log_message(f"설정 파일 로드 중 오류: {e}")
-            self.log_message("기본 계정들을 추가합니다.")
+            self.log_message(f"설정 파일 불러오기 중 오류: {e}")
+            messagebox.showerror("불러오기 오류", f"설정 불러오기 중 오류가 발생했습니다: {e}")
             self.add_default_accounts()
+            
+        # 계정 목록 표시 업데이트
+        self.update_account_list_display()
     
     def save_config(self):
         """현재 설정을 config.json 파일에 저장합니다."""
@@ -339,7 +833,8 @@ class BlogLikeAutomationGUI:
                     "id": account['user_id'],
                     "password": account['password'],
                     "blog_url": account['blog_url'],
-                    "start_page": account['start_page']
+                    "start_page": account['start_page'],
+                    "end_page": account.get('end_page')
                 }
                 config["accounts"].append(account_config)
             
@@ -353,12 +848,48 @@ class BlogLikeAutomationGUI:
             messagebox.showerror("저장 오류", f"설정 저장 중 오류가 발생했습니다: {e}")
     
     def save_config_manual(self):
-        """수동으로 설정을 저장합니다 (메시지박스 표시)"""
+        """설정을 config.json에 저장 (테이블 기반)"""
         try:
-            self.save_config()
-            messagebox.showinfo("저장 완료", f"설정이 {self.config_file}에 저장되었습니다.")
+            # 테이블에서 계정 데이터 수집
+            accounts = []
+            for i in range(1, 4):  # 계정 1, 2, 3
+                check_var = getattr(self, f'account{i}_check', None)
+                id_entry = getattr(self, f'account{i}_id', None)
+                pw_entry = getattr(self, f'account{i}_pw', None)
+                url_entry = getattr(self, f'account{i}_url', None)
+                start_page_entry = getattr(self, f'account{i}_start_page', None)
+                end_page_entry = getattr(self, f'account{i}_end_page', None)
+                
+                if all([check_var, id_entry, pw_entry, url_entry, start_page_entry, end_page_entry]):
+                    account_data = {
+                        'id': id_entry.get().strip(),
+                        'password': pw_entry.get().strip(),
+                        'blog_url': url_entry.get().strip(),
+                        'start_page': int(start_page_entry.get()) if start_page_entry.get().strip() else 1,
+                        'end_page': int(end_page_entry.get()) if end_page_entry.get().strip() else None,
+                        'enabled': check_var.get()
+                    }
+                    accounts.append(account_data)
+            
+            # config.json 구조 생성
+            config_data = {
+                'accounts': accounts,
+                'automation_settings': {
+                    'scroll_delay': float(self.scroll_delay_var.get()) if self.scroll_delay_var.get() else 2.0,
+                    'click_delay': float(self.click_delay_var.get()) if self.click_delay_var.get() else 1.0
+                }
+            }
+            
+            # config.json 파일에 저장
+            with open('config.json', 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=2)
+            
+            messagebox.showinfo("성공", "설정이 config.json에 저장되었습니다.")
+            self.log_message("설정이 config.json에 저장되었습니다.")
+            
         except Exception as e:
-            messagebox.showerror("저장 오류", f"설정 저장 중 오류가 발생했습니다: {e}")
+            messagebox.showerror("오류", f"설정 저장 중 오류가 발생했습니다: {str(e)}")
+            self.log_message(f"설정 저장 오류: {str(e)}")
     
     def reset_config(self):
         """설정을 초기화합니다."""
@@ -384,6 +915,7 @@ class BlogLikeAutomationGUI:
                 'password': account_data['password'],
                 'blog_url': account_data.get('blog_url', 'https://blog.naver.com/'),
                 'start_page': account_data.get('start_page', 1),
+                'end_page': account_data.get('end_page', None),
                 'is_running': False,
                 'driver': None,
                 'wait': None,
@@ -393,13 +925,13 @@ class BlogLikeAutomationGUI:
             }
             self.accounts.append(account)
             
-            # 계정 목록 업데이트 (시작 페이지 표시)
-            self.account_listbox.insert(tk.END, f"{account_data['id']} (시작: {account['start_page']}페이지) - {account['blog_url']} [대기중]")
-            
             # 계정별 로그 탭 생성
             self.create_account_log_tab(account_id, account_data['id'])
             
             self.log_message(f"계정 로드됨: {account_data['id']} (시작 페이지: {account['start_page']})")
+            
+            # 계정 목록 표시 업데이트
+            self.update_account_list_display()
             
         except Exception as e:
             self.log_message(f"계정 로드 중 오류: {e}")
@@ -418,6 +950,7 @@ class BlogLikeAutomationGUI:
                 'password': account_info['password'],
                 'blog_url': account_info.get('blog_url', 'https://blog.naver.com/'),
                 'start_page': account_info.get('start_page', 1),
+                'end_page': account_info.get('end_page', None),
                 'is_running': False,
                 'driver': None,
                 'wait': None,
@@ -427,13 +960,13 @@ class BlogLikeAutomationGUI:
             }
             self.accounts.append(account_data)
             
-            # 계정 목록 업데이트 (시작 페이지 표시)
-            self.account_listbox.insert(tk.END, f"{account_info['id']} (시작: {account_info.get('start_page', 1)}페이지) - {account_info.get('blog_url', '기본 URL')} [대기중]")
-            
             # 계정별 로그 탭 생성
             self.create_account_log_tab(account_id, account_info['id'])
             
             self.log_message(f"계정 추가됨: {account_info['id']} (시작 페이지: {account_info.get('start_page', 1)})")
+            
+            # 계정 목록 표시 업데이트
+            self.update_account_list_display()
             
             # 설정 자동 저장
             self.save_config()
@@ -441,15 +974,8 @@ class BlogLikeAutomationGUI:
     def update_account_status(self, account, status):
         """계정 상태 업데이트"""
         try:
-            # 계정 목록에서 해당 계정 찾기
-            for i in range(self.account_listbox.size()):
-                item = self.account_listbox.get(i)
-                if account['user_id'] in item:
-                    # 상태 업데이트 (시작 페이지 표시 포함)
-                    new_item = f"{account['user_id']} (시작: {account['start_page']}페이지) - {account['blog_url']} [{status}]"
-                    self.account_listbox.delete(i)
-                    self.account_listbox.insert(i, new_item)
-                    break
+            # 계정 목록 표시 전체 업데이트
+            self.update_account_list_display()
         except Exception as e:
             self.log_message(f"계정 상태 업데이트 중 오류: {e}")
     
@@ -470,9 +996,6 @@ class BlogLikeAutomationGUI:
         # 계정 정보 삭제
         del self.accounts[index]
         
-        # 계정 목록 업데이트
-        self.account_listbox.delete(index)
-        
         # 로그 탭 삭제
         account_id = account['id']
         if account_id in self.account_log_frames:
@@ -481,6 +1004,9 @@ class BlogLikeAutomationGUI:
             del self.account_log_texts[account_id]
         
         self.log_message(f"계정 삭제됨: {account['user_id']}")
+        
+        # 계정 목록 표시 업데이트
+        self.update_account_list_display()
         
         # 설정 자동 저장
         self.save_config()
@@ -508,12 +1034,13 @@ class BlogLikeAutomationGUI:
             account['password'] = dialog.result['password']
             account['blog_url'] = dialog.result['blog_url']
             account['start_page'] = dialog.result['start_page']
-            
-            # 계정 목록 업데이트
-            self.account_listbox.delete(index)
-            self.account_listbox.insert(index, f"{account['user_id']} (시작: {account['start_page']}페이지) - {account['blog_url']} [대기중]")
+            account['end_page'] = dialog.result.get('end_page', None)
             
             self.log_message(f"계정 편집됨: {account['user_id']} (시작 페이지: {account['start_page']})")
+            
+            # 계정 목록 표시 업데이트
+            self.update_account_list_display()
+            
             self.save_config()
     
     def create_account_log_tab(self, account_id, user_id):
@@ -523,40 +1050,6 @@ class BlogLikeAutomationGUI:
         self.account_log_frames[account_id] = None
         self.account_log_texts[account_id] = None
     
-    def start_all_accounts(self):
-        """모든 계정 5초 딜레이로 독립 실행 시작"""
-        if not self.accounts:
-            messagebox.showwarning("경고", "추가된 계정이 없습니다.")
-            return
-        
-        # 5초 간격으로 계정을 독립적으로 시작하는 스레드 생성
-        start_thread = threading.Thread(target=self.start_accounts_with_delay, daemon=True)
-        start_thread.start()
-    
-    def start_accounts_with_delay(self):
-        """5초 간격으로 계정들을 독립적으로 시작 (동시 실행)"""
-        started_count = 0
-        for i, account in enumerate(self.accounts):
-            if not account['is_running']:
-                # 첫 번째 계정이 아닌 경우 5초 대기
-                if i > 0:
-                    self.log_message(f"다음 계정 시작까지 5초 대기 중...")
-                    time.sleep(5)
-                
-                # 각 계정을 독립적인 스레드에서 실행
-                thread = threading.Thread(target=self.account_automation_worker, 
-                                        args=(account,), daemon=True)
-                thread.start()
-                self.account_threads.append(thread)
-                account['is_running'] = True
-                started_count += 1
-                self.update_account_status(account, "실행중")
-                self.log_message(f"계정 {account['user_id']} 시작됨 (독립 세션)")
-        
-        if started_count > 0:
-            self.log_message(f"{started_count}개 계정이 5초 간격으로 독립 실행되었습니다.")
-        else:
-            self.log_message("시작할 수 있는 계정이 없습니다. (모든 계정이 이미 실행 중일 수 있음)")
     
     def account_automation_worker_sequential(self, account):
         """계정별 자동화 작업 (순차 실행용)"""
@@ -649,9 +1142,9 @@ class BlogLikeAutomationGUI:
     
     def account_automation_worker(self, account):
         """계정별 자동화 작업 스레드"""
+        account_id = account.get('id', account.get('user_id', 'unknown'))
         try:
             account['is_running'] = True
-            account_id = account['id']
             
             self.log_message(f"계정 {account['user_id']} 자동화 시작", account_id)
             self.log_message(f"계정 정보 - ID: {account['user_id']}, URL: {account['blog_url']}", account_id)
@@ -691,6 +1184,11 @@ class BlogLikeAutomationGUI:
                 
                 # 공감 버튼 클릭
                 clicked_likes = self.find_and_click_account_like_buttons(account)
+                
+                # 끝 페이지 체크
+                if account.get('end_page') and account['current_page'] >= account['end_page']:
+                    self.log_message(f"설정한 끝 페이지({account['end_page']})에 도달했습니다.", account_id)
+                    break
                 
                 # 다음 페이지로 이동
                 if not self.go_to_account_next_page(account):
@@ -2137,16 +2635,23 @@ class AccountDialog:
         
         # 시작 페이지 입력
         page_frame = ttk.Frame(main_frame)
-        page_frame.pack(fill=tk.X, pady=(0, 20))
+        page_frame.pack(fill=tk.X, pady=(0, 10))
         
         ttk.Label(page_frame, text="시작 페이지:").pack(side=tk.LEFT, padx=(0, 10))
         self.start_page_var = tk.StringVar(value="1")
         page_entry = ttk.Entry(page_frame, textvariable=self.start_page_var, width=10)
-        page_entry.pack(side=tk.LEFT)
+        page_entry.pack(side=tk.LEFT, padx=(0, 20))
+        
+        # 끝 페이지 입력
+        ttk.Label(page_frame, text="끝 페이지:").pack(side=tk.LEFT, padx=(0, 10))
+        self.end_page_var = tk.StringVar(value="")
+        end_page_entry = ttk.Entry(page_frame, textvariable=self.end_page_var, width=10)
+        end_page_entry.pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(page_frame, text="(비우면 끝까지)").pack(side=tk.LEFT)
         
         # 버튼 프레임
         button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X, pady=(20, 0))
+        button_frame.pack(fill=tk.X, pady=(10, 0))
         
         ttk.Button(button_frame, text="추가", command=self.add_account).pack(side=tk.RIGHT, padx=(10, 0))
         ttk.Button(button_frame, text="취소", command=self.cancel).pack(side=tk.RIGHT)
@@ -2160,10 +2665,11 @@ class AccountEditDialog:
         # 다이얼로그 창 생성
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("계정 편집")
-        self.dialog.geometry("400x300")
+        self.dialog.geometry("450x400")
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
+        self.dialog.configure(bg=Colors.BACKGROUND)
         
         # 중앙 정렬
         self.dialog.geometry("+%d+%d" % (parent.winfo_rootx() + 50, parent.winfo_rooty() + 50))
@@ -2175,55 +2681,141 @@ class AccountEditDialog:
     
     def setup_ui(self):
         """UI 구성"""
-        main_frame = ttk.Frame(self.dialog, padding="20")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # 메인 컨테이너
+        main_container = tk.Frame(self.dialog, bg=Colors.BACKGROUND)
+        main_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         
-        # 제목
-        title_label = ttk.Label(main_frame, text="계정 정보 편집", font=("Arial", 12, "bold"))
-        title_label.pack(pady=(0, 20))
+        # 제목 카드
+        title_card = tk.Frame(main_container, bg=Colors.CARD, relief='flat', bd=0)
+        title_card.pack(fill=tk.X, pady=(0, 15))
+        
+        title_label = tk.Label(title_card, 
+                              text="계정 정보 편집", 
+                              font=Fonts.get_font('HEADLINE_WIN'),
+                              bg=Colors.CARD,
+                              fg=Colors.PRIMARY_TEXT)
+        title_label.pack(pady=15)
+        
+        # 입력 폼 카드
+        form_card = tk.Frame(main_container, bg=Colors.CARD, relief='flat', bd=0)
+        form_card.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
         
         # ID 입력
-        id_frame = ttk.Frame(main_frame)
-        id_frame.pack(fill=tk.X, pady=(0, 10))
+        id_frame = tk.Frame(form_card, bg=Colors.CARD)
+        id_frame.pack(fill=tk.X, padx=20, pady=(20, 10))
         
-        ttk.Label(id_frame, text="ID:").pack(side=tk.LEFT, padx=(0, 10))
+        tk.Label(id_frame, text="ID", 
+                font=Fonts.get_font('BODY_WIN'),
+                bg=Colors.CARD, fg=Colors.PRIMARY_TEXT).pack(anchor=tk.W)
+        
         self.id_var = tk.StringVar(value=self.account['user_id'])
-        id_entry = ttk.Entry(id_frame, textvariable=self.id_var, width=20)
-        id_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        id_entry = tk.Entry(id_frame, textvariable=self.id_var, 
+                           font=Fonts.get_font('BODY_WIN'),
+                           bg=Colors.CARD, fg=Colors.PRIMARY_TEXT,
+                           relief='flat', bd=1, highlightthickness=1)
+        id_entry.pack(fill=tk.X, pady=(5, 0))
         
         # 비밀번호 입력
-        pw_frame = ttk.Frame(main_frame)
-        pw_frame.pack(fill=tk.X, pady=(0, 10))
+        pw_frame = tk.Frame(form_card, bg=Colors.CARD)
+        pw_frame.pack(fill=tk.X, padx=20, pady=10)
         
-        ttk.Label(pw_frame, text="비밀번호:").pack(side=tk.LEFT, padx=(0, 10))
+        tk.Label(pw_frame, text="비밀번호", 
+                font=Fonts.get_font('BODY_WIN'),
+                bg=Colors.CARD, fg=Colors.PRIMARY_TEXT).pack(anchor=tk.W)
+        
         self.pw_var = tk.StringVar(value=self.account['password'])
-        pw_entry = ttk.Entry(pw_frame, textvariable=self.pw_var, show="*", width=20)
-        pw_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        pw_entry = tk.Entry(pw_frame, textvariable=self.pw_var, show="*",
+                           font=Fonts.get_font('BODY_WIN'),
+                           bg=Colors.CARD, fg=Colors.PRIMARY_TEXT,
+                           relief='flat', bd=1, highlightthickness=1)
+        pw_entry.pack(fill=tk.X, pady=(5, 0))
         
         # 블로그 URL 입력
-        url_frame = ttk.Frame(main_frame)
-        url_frame.pack(fill=tk.X, pady=(0, 10))
+        url_frame = tk.Frame(form_card, bg=Colors.CARD)
+        url_frame.pack(fill=tk.X, padx=20, pady=10)
         
-        ttk.Label(url_frame, text="블로그 URL:").pack(side=tk.LEFT, padx=(0, 10))
+        tk.Label(url_frame, text="블로그 URL", 
+                font=Fonts.get_font('BODY_WIN'),
+                bg=Colors.CARD, fg=Colors.PRIMARY_TEXT).pack(anchor=tk.W)
+        
         self.url_var = tk.StringVar(value=self.account['blog_url'])
-        url_entry = ttk.Entry(url_frame, textvariable=self.url_var, width=30)
-        url_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        url_entry = tk.Entry(url_frame, textvariable=self.url_var,
+                            font=Fonts.get_font('BODY_WIN'),
+                            bg=Colors.CARD, fg=Colors.PRIMARY_TEXT,
+                            relief='flat', bd=1, highlightthickness=1)
+        url_entry.pack(fill=tk.X, pady=(5, 0))
         
-        # 시작 페이지 입력
-        page_frame = ttk.Frame(main_frame)
-        page_frame.pack(fill=tk.X, pady=(0, 20))
+        # 페이지 설정 프레임
+        page_frame = tk.Frame(form_card, bg=Colors.CARD)
+        page_frame.pack(fill=tk.X, padx=20, pady=10)
         
-        ttk.Label(page_frame, text="시작 페이지:").pack(side=tk.LEFT, padx=(0, 10))
+        tk.Label(page_frame, text="페이지 설정", 
+                font=Fonts.get_font('BODY_WIN'),
+                bg=Colors.CARD, fg=Colors.PRIMARY_TEXT).pack(anchor=tk.W)
+        
+        # 페이지 입력 서브프레임
+        page_input_frame = tk.Frame(page_frame, bg=Colors.CARD)
+        page_input_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        # 시작 페이지
+        start_frame = tk.Frame(page_input_frame, bg=Colors.CARD)
+        start_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        
+        tk.Label(start_frame, text="시작 페이지", 
+                font=Fonts.get_font('SUBHEAD_WIN'),
+                bg=Colors.CARD, fg=Colors.SECONDARY_TEXT).pack(anchor=tk.W)
+        
         self.start_page_var = tk.StringVar(value=str(self.account['start_page']))
-        page_entry = ttk.Entry(page_frame, textvariable=self.start_page_var, width=10)
-        page_entry.pack(side=tk.LEFT)
+        start_page_entry = tk.Entry(start_frame, textvariable=self.start_page_var,
+                                   font=Fonts.get_font('BODY_WIN'),
+                                   bg=Colors.CARD, fg=Colors.PRIMARY_TEXT,
+                                   relief='flat', bd=1, highlightthickness=1,
+                                   width=8)
+        start_page_entry.pack(anchor=tk.W, pady=(2, 0))
         
-        # 버튼 프레임
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X, pady=(20, 0))
+        # 끝 페이지
+        end_frame = tk.Frame(page_input_frame, bg=Colors.CARD)
+        end_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
         
-        ttk.Button(button_frame, text="저장", command=self.save_account).pack(side=tk.RIGHT, padx=(10, 0))
-        ttk.Button(button_frame, text="취소", command=self.cancel).pack(side=tk.RIGHT)
+        tk.Label(end_frame, text="끝 페이지", 
+                font=Fonts.get_font('SUBHEAD_WIN'),
+                bg=Colors.CARD, fg=Colors.SECONDARY_TEXT).pack(anchor=tk.W)
+        
+        self.end_page_var = tk.StringVar(value=str(self.account.get('end_page', '')))
+        end_page_entry = tk.Entry(end_frame, textvariable=self.end_page_var,
+                                 font=Fonts.get_font('BODY_WIN'),
+                                 bg=Colors.CARD, fg=Colors.PRIMARY_TEXT,
+                                 relief='flat', bd=1, highlightthickness=1,
+                                 width=8)
+        end_page_entry.pack(anchor=tk.W, pady=(2, 0))
+        
+        # 안내 텍스트
+        tk.Label(page_frame, text="(끝 페이지를 비우면 끝까지 진행)", 
+                font=Fonts.get_font('FOOTNOTE_WIN'),
+                bg=Colors.CARD, fg=Colors.SECONDARY_TEXT).pack(anchor=tk.W, pady=(5, 0))
+        
+        # 버튼 카드
+        button_card = tk.Frame(main_container, bg=Colors.CARD, relief='flat', bd=0)
+        button_card.pack(fill=tk.X)
+        
+        button_frame = tk.Frame(button_card, bg=Colors.CARD)
+        button_frame.pack(fill=tk.X, padx=20, pady=15)
+        
+        # 취소 버튼
+        cancel_btn = tk.Button(button_frame, text="취소", command=self.cancel,
+                              font=Fonts.get_font('BODY_WIN'),
+                              bg=Colors.CARD, fg=Colors.ACTION_BLUE,
+                              relief='flat', bd=1, highlightthickness=0,
+                              padx=20, pady=8)
+        cancel_btn.pack(side=tk.RIGHT, padx=(10, 0))
+        
+        # 저장 버튼
+        save_btn = tk.Button(button_frame, text="저장", command=self.save_account,
+                            font=Fonts.get_font('BODY_WIN'),
+                            bg=Colors.ACTION_BLUE, fg='white',
+                            relief='flat', bd=0, highlightthickness=0,
+                            padx=20, pady=8)
+        save_btn.pack(side=tk.RIGHT)
     
     def save_account(self):
         """계정 저장"""
@@ -2240,11 +2832,25 @@ class AccountEditDialog:
             messagebox.showerror("오류", "시작 페이지는 숫자로만 입력해주세요.")
             return
         
+        # 끝 페이지 검증
+        end_page = None
+        end_page_str = self.end_page_var.get().strip()
+        if end_page_str:
+            try:
+                end_page = int(end_page_str)
+                if end_page < start_page:
+                    messagebox.showerror("오류", "끝 페이지는 시작 페이지보다 크거나 같아야 합니다.")
+                    return
+            except ValueError:
+                messagebox.showerror("오류", "끝 페이지는 숫자로만 입력해주세요.")
+            return
+        
         self.result = {
             'id': self.id_var.get(),
             'password': self.pw_var.get(),
             'blog_url': self.url_var.get(),
-            'start_page': start_page
+            'start_page': start_page,
+            'end_page': end_page
         }
         
         self.dialog.destroy()
