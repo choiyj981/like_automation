@@ -28,5 +28,23 @@
   "automation_settings": {
     "scroll_delay": 2.0,
     "click_delay": 1.0
+  },
+  "automation_schedule": {
+    "enabled": true,
+    "interval_hours": 24,
+    "specific_times": [
+      "10:41",
+      "10:43",
+      "10:45"
+    ],
+    "days": {
+      "monday": true,
+      "tuesday": true,
+      "wednesday": true,
+      "thursday": true,
+      "friday": true,
+      "saturday": true,
+      "sunday": true
+    }
   }
 }

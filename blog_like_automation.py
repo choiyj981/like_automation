@@ -287,39 +287,18 @@ class BlogLikeAutomationGUI:
         # config 초기화
         self.config = {}
         
+        # 스케줄링 관련 변수 초기화
+        self.scheduler_running = False
+        self.scheduler = None
+        
+        # 실행 중인 계정 추적
+        self.running_accounts = set()  # 실행 중인 계정 ID들을 저장
+        
         self.setup_ui()
         
         # 설정 파일에서 계정 정보 로드
         self.load_config()
     
-    def add_default_accounts(self):
-        """기본 계정들 추가 (config.json이 없을 때만 사용)"""
-        default_accounts = [
-            {
-                'id': 'cms045757',
-                'password': '!7476458aA',
-                'blog_url': 'https://blog.naver.com/',
-                'start_page': 1,
-                'end_page': None
-            },
-            {
-                'id': 'chldudwns645',
-                'password': '981749aA',
-                'blog_url': 'https://blog.naver.com/',
-                'start_page': 1,
-                'end_page': None
-            },
-            {
-                'id': 'minaci_',
-                'password': '민아4376!',
-                'blog_url': 'https://blog.naver.com/',
-                'start_page': 1,
-                'end_page': None
-            }
-        ]
-        
-        for account_info in default_accounts:
-            self.add_account_from_config(account_info)
     
         
     def setup_ui(self):
@@ -338,6 +317,9 @@ class BlogLikeAutomationGUI:
         
         # 제어 섹션
         self.create_control_section()
+        
+        # 스케줄링 섹션
+        self.create_schedule_section()
         
         # 진행 상황 섹션
         self.create_progress_section()
@@ -567,6 +549,99 @@ class BlogLikeAutomationGUI:
                                      style='Secondary.TButton')
         self.stop_button.pack(side=tk.LEFT)
     
+    def create_schedule_section(self):
+        """스케줄링 섹션 생성"""
+        # 스케줄링 카드
+        schedule_card = ttk.Frame(self.scrollable_frame, style='Card.TFrame', padding="15")
+        schedule_card.pack(fill=tk.X, padx=15, pady=10)
+        
+        # 섹션 제목
+        section_title = ttk.Label(schedule_card, text="스케줄링 설정", style='Headline.TLabel')
+        section_title.pack(anchor=tk.W, pady=(0, 15))
+        
+        # 스케줄링 옵션
+        options_frame = ttk.Frame(schedule_card, style='Card.TFrame')
+        options_frame.pack(fill=tk.X)
+        
+        # 스케줄링 활성화 체크박스
+        self.schedule_enabled = tk.BooleanVar(value=False)
+        schedule_check = ttk.Checkbutton(options_frame, text="스케줄링 활성화", 
+                                       variable=self.schedule_enabled, style='Modern.TCheckbutton')
+        schedule_check.pack(anchor=tk.W, pady=(0, 10))
+        
+        # 스케줄링 설정 프레임
+        schedule_settings_frame = ttk.Frame(options_frame, style='Card.TFrame')
+        schedule_settings_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        # 간격 설정
+        interval_frame = ttk.Frame(schedule_settings_frame, style='Card.TFrame')
+        interval_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(interval_frame, text="실행 간격 (시간)", style='Body.TLabel').pack(side=tk.LEFT, padx=(0, 8))
+        self.interval_var = tk.StringVar(value="24")
+        interval_entry = ttk.Entry(interval_frame, textvariable=self.interval_var, 
+                                  style='Modern.TEntry', width=8)
+        interval_entry.pack(side=tk.LEFT, padx=(0, 20))
+        
+        # 특정 시간 설정
+        time_frame = ttk.Frame(schedule_settings_frame, style='Card.TFrame')
+        time_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(time_frame, text="특정 시간 (HH:MM, 쉼표로 구분)", style='Body.TLabel').pack(anchor=tk.W)
+        self.specific_times_var = tk.StringVar(value="09:00, 18:00")
+        time_entry = ttk.Entry(time_frame, textvariable=self.specific_times_var, 
+                              style='Modern.TEntry')
+        time_entry.pack(fill=tk.X, pady=(5, 0))
+        
+        # 요일 설정
+        days_frame = ttk.Frame(schedule_settings_frame, style='Card.TFrame')
+        days_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(days_frame, text="실행 요일", style='Body.TLabel').pack(anchor=tk.W)
+        
+        days_check_frame = ttk.Frame(days_frame, style='Card.TFrame')
+        days_check_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        # 요일 체크박스들
+        self.days_vars = {}
+        days = ["월", "화", "수", "목", "금", "토", "일"]
+        days_en = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+        
+        for i, (day_ko, day_en) in enumerate(zip(days, days_en)):
+            var = tk.BooleanVar(value=True)
+            self.days_vars[day_en] = var
+            check = ttk.Checkbutton(days_check_frame, text=day_ko, variable=var, 
+                                   style='Modern.TCheckbutton')
+            check.pack(side=tk.LEFT, padx=(0, 8))
+        
+        # 스케줄링 상태 표시
+        status_frame = ttk.Frame(schedule_card, style='Card.TFrame')
+        status_frame.pack(fill=tk.X, pady=(15, 0))
+        
+        self.schedule_status_var = tk.StringVar(value="스케줄러 비활성화")
+        status_label = ttk.Label(status_frame, textvariable=self.schedule_status_var, 
+                                style='Secondary.TLabel')
+        status_label.pack(anchor=tk.W)
+        
+        # 스케줄링 버튼들
+        button_frame = ttk.Frame(schedule_card, style='Card.TFrame')
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        self.start_scheduler_btn = ttk.Button(button_frame, text="🚀 스케줄러 시작", 
+                                            command=self.start_scheduler, 
+                                            style='Primary.TButton')
+        self.start_scheduler_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.stop_scheduler_btn = ttk.Button(button_frame, text="⏹️ 스케줄러 중단", 
+                                           command=self.stop_scheduler, state='disabled', 
+                                           style='Secondary.TButton')
+        self.stop_scheduler_btn.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.save_schedule_btn = ttk.Button(button_frame, text="💾 스케줄 저장", 
+                                          command=self.save_schedule_config, 
+                                          style='Secondary.TButton')
+        self.save_schedule_btn.pack(side=tk.LEFT)
+    
     def create_progress_section(self):
         """진행 상황 섹션 생성"""
         # 진행 상황 카드
@@ -675,7 +750,7 @@ class BlogLikeAutomationGUI:
                         'start_page': int(start_page_entry.get()) if start_page_entry.get().strip() else 1,
                         'end_page': int(end_page_entry.get()) if end_page_entry.get().strip() else None,
                         'selected': True,
-                        'is_running': False,
+                        'is_running': False,  # 새로 시작하는 계정이므로 False로 설정
                         'current_page': int(start_page_entry.get()) if start_page_entry.get().strip() else 1,
                         'liked_count': 0,
                         'skipped_count': 0,
@@ -706,14 +781,207 @@ class BlogLikeAutomationGUI:
         start_thread.start()
         self.log_message("계정 시작 스레드가 시작되었습니다.")
     
+    def start_scheduler(self):
+        """스케줄러 시작"""
+        try:
+            if self.scheduler_running:
+                messagebox.showwarning("경고", "스케줄러가 이미 실행 중입니다.")
+                return
+            
+            # 스케줄링 활성화 확인 및 자동 활성화
+            if not self.schedule_enabled.get():
+                self.log_message("⚠️ 스케줄링이 비활성화되어 있습니다. 자동으로 활성화합니다.")
+                self.schedule_enabled.set(True)
+            
+            # 활성화된 계정 확인
+            enabled_accounts = []
+            for i in range(1, 4):  # 계정 1, 2, 3
+                check_var = getattr(self, f'account{i}_check', None)
+                id_entry = getattr(self, f'account{i}_id', None)
+                pw_entry = getattr(self, f'account{i}_pw', None)
+                
+                if check_var and id_entry and pw_entry:
+                    if check_var.get() and id_entry.get().strip() and pw_entry.get().strip():
+                        enabled_accounts.append(f"계정 {i}")
+            
+            if not enabled_accounts:
+                self.log_message("❌ 활성화된 계정이 없습니다.")
+                messagebox.showerror("오류", "스케줄러를 시작하려면 최소 하나의 계정을 활성화하고 아이디/비밀번호를 입력해야 합니다.")
+                return
+            
+            self.log_message(f"✅ 활성화된 계정: {', '.join(enabled_accounts)}")
+            
+            # 스케줄 설정 저장
+            self.save_schedule_config()
+            
+            # 스케줄러 시작 (간단한 구현)
+            self.scheduler_running = True
+            self.schedule_status_var.set("스케줄러 실행 중...")
+            self.start_scheduler_btn.config(state='disabled')
+            self.stop_scheduler_btn.config(state='normal')
+            
+            # 스케줄 설정 정보 로그
+            interval = self.interval_var.get()
+            times = self.specific_times_var.get()
+            enabled_days = [day for day, var in self.days_vars.items() if var.get()]
+            
+            self.log_message("🚀 스케줄러가 시작되었습니다.")
+            self.log_message(f"📋 설정 정보:")
+            self.log_message(f"   - 실행 간격: {interval}시간")
+            self.log_message(f"   - 특정 시간: {times}")
+            self.log_message(f"   - 실행 요일: {', '.join(enabled_days)}")
+            
+            messagebox.showinfo("성공", "스케줄러가 시작되었습니다!")
+            
+            # 스케줄러 스레드 시작
+            scheduler_thread = threading.Thread(target=self.scheduler_loop, daemon=True)
+            scheduler_thread.start()
+            
+        except Exception as e:
+            self.log_message(f"스케줄러 시작 중 오류: {e}")
+            messagebox.showerror("오류", f"스케줄러 시작 중 오류가 발생했습니다: {e}")
+    
+    def stop_scheduler(self):
+        """스케줄러 중단"""
+        try:
+            if not self.scheduler_running:
+                messagebox.showwarning("경고", "스케줄러가 실행 중이 아닙니다.")
+                return
+            
+            self.scheduler_running = False
+            self.schedule_status_var.set("스케줄러 중단됨")
+            self.start_scheduler_btn.config(state='normal')
+            self.stop_scheduler_btn.config(state='disabled')
+            self.log_message("⏹️ 스케줄러가 중단되었습니다.")
+            messagebox.showinfo("완료", "스케줄러가 중단되었습니다.")
+            
+        except Exception as e:
+            self.log_message(f"스케줄러 중단 중 오류: {e}")
+            messagebox.showerror("오류", f"스케줄러 중단 중 오류가 발생했습니다: {e}")
+    
+    def scheduler_loop(self):
+        """스케줄러 메인 루프"""
+        self.log_message("🔄 스케줄러 루프가 시작되었습니다.")
+        
+        # 초기 디버깅 로그
+        self.log_message("🔧 스케줄러 초기화 중...")
+        
+        while self.scheduler_running:
+            try:
+                # 현재 시간 확인
+                now = time.time()
+                current_time = time.strftime("%H:%M")
+                current_weekday_korean = time.strftime("%A")
+                
+                # 한국어 요일을 영어로 변환
+                weekday_map = {
+                    '월요일': 'monday',
+                    '화요일': 'tuesday', 
+                    '수요일': 'wednesday',
+                    '목요일': 'thursday',
+                    '금요일': 'friday',
+                    '토요일': 'saturday',
+                    '일요일': 'sunday'
+                }
+                current_weekday = weekday_map.get(current_weekday_korean, current_weekday_korean.lower())
+                
+                # 요일 확인
+                day_var = self.days_vars.get(current_weekday)
+                if day_var is None:
+                    time.sleep(60)
+                    continue
+                
+                if not day_var.get():
+                    time.sleep(60)
+                    continue
+                
+                # 특정 시간 확인
+                specific_times_str = self.specific_times_var.get()
+                specific_times = [t.strip() for t in specific_times_str.split(',') if t.strip()]
+                
+                if current_time in specific_times:
+                    # 중복 실행 방지: 마지막 실행 시간 확인
+                    if not hasattr(self, 'last_scheduled_run') or (now - self.last_scheduled_run) > 300:  # 5분 이상 차이
+                        self.log_message(f"⏰ 스케줄된 시간 {current_time}에 자동화를 시작합니다.")
+                        self.start_selected_accounts()
+                        self.last_scheduled_run = now
+                    else:
+                        self.log_message(f"⏰ 스케줄된 시간 {current_time}이지만 최근에 실행되어 건너뜁니다.")
+                    time.sleep(60)  # 1분 대기 (같은 시간에 중복 실행 방지)
+                
+                # 간격 기반 실행 (24시간마다)
+                interval_hours = int(self.interval_var.get()) if self.interval_var.get().isdigit() else 24
+                if not hasattr(self, 'last_run_time'):
+                    self.last_run_time = now
+                
+                if now - self.last_run_time >= interval_hours * 3600:  # 시간을 초로 변환
+                    # 중복 실행 방지: 마지막 실행 시간 확인
+                    if not hasattr(self, 'last_interval_run') or (now - self.last_interval_run) > 300:  # 5분 이상 차이
+                        self.log_message(f"⏰ {interval_hours}시간 간격으로 자동화를 시작합니다.")
+                        self.start_selected_accounts()
+                        self.last_interval_run = now
+                    else:
+                        self.log_message(f"⏰ {interval_hours}시간 간격이지만 최근에 실행되어 건너뜁니다.")
+                    self.last_run_time = now
+                
+                time.sleep(60)  # 1분마다 체크
+                
+            except Exception as e:
+                self.log_message(f"❌ 스케줄러 루프 오류: {e}")
+                import traceback
+                self.log_message(f"❌ 상세 오류: {traceback.format_exc()}")
+                time.sleep(60)
+    
+    def save_schedule_config(self):
+        """스케줄 설정 저장"""
+        try:
+            # 현재 config.json 로드 (기존 데이터 보존)
+            if os.path.exists('config.json'):
+                with open('config.json', 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+            else:
+                config_data = {}
+            
+            # 스케줄 설정 업데이트 (기존 accounts, automation_settings는 그대로 유지)
+            config_data['automation_schedule'] = {
+                'enabled': self.schedule_enabled.get(),
+                'interval_hours': int(self.interval_var.get()) if self.interval_var.get().isdigit() else 24,
+                'specific_times': [t.strip() for t in self.specific_times_var.get().split(',') if t.strip()],
+                'days': {day: var.get() for day, var in self.days_vars.items()}
+            }
+            
+            # config.json에 저장 (기존 데이터는 그대로 유지)
+            with open('config.json', 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=2)
+            
+            self.log_message("💾 스케줄 설정이 저장되었습니다.")
+            
+        except Exception as e:
+            self.log_message(f"스케줄 설정 저장 중 오류: {e}")
+            messagebox.showerror("오류", f"스케줄 설정 저장 중 오류가 발생했습니다: {e}")
+    
     def start_selected_accounts_with_delay(self, selected_accounts):
         """선택된 계정들을 5초 간격으로 시작"""
         started_count = 0
+        
+        # 이미 실행 중인 계정이 있는지 확인
+        already_running = []
+        for account in selected_accounts:
+            if account['user_id'] in self.running_accounts:
+                already_running.append(account['user_id'])
+        
+        if already_running:
+            self.log_message(f"⚠️ 이미 실행 중인 계정이 있습니다: {already_running}")
+            return
+        
         for i, account in enumerate(selected_accounts):
             # 첫 번째 계정이 아닌 경우 5초 대기
             if i > 0:
                 self.log_message(f"다음 계정 시작까지 5초 대기 중...")
                 time.sleep(5)
+            
+            # 실행 중인 계정 목록에 추가
+            self.running_accounts.add(account['user_id'])
             
             # 각 계정을 독립적인 스레드에서 실행
             thread = threading.Thread(target=self.account_automation_worker, 
@@ -750,6 +1018,7 @@ class BlogLikeAutomationGUI:
         try:
             if not os.path.exists('config.json'):
                 self.log_message("config.json 파일이 없습니다. 기본 설정을 사용합니다.")
+                self.initialize_default_table_values()
                 return
             
             with open('config.json', 'r', encoding='utf-8') as f:
@@ -803,15 +1072,111 @@ class BlogLikeAutomationGUI:
                 self.scroll_delay_var.set(str(settings.get('scroll_delay', 2)))
                 self.click_delay_var.set(str(settings.get('click_delay', 1)))
             
+            # 스케줄 설정 불러오기
+            if 'automation_schedule' in self.config:
+                schedule = self.config['automation_schedule']
+                self.schedule_enabled.set(schedule.get('enabled', False))
+                self.interval_var.set(str(schedule.get('interval_hours', 24)))
+                
+                # specific_times 처리 (리스트 또는 문자열)
+                specific_times = schedule.get('specific_times', ['09:00', '18:00'])
+                if isinstance(specific_times, list):
+                    self.specific_times_var.set(', '.join(specific_times))
+                else:
+                    self.specific_times_var.set(specific_times)
+                
+                # 요일 설정 불러오기
+                days_config = schedule.get('days', {})
+                for day, var in self.days_vars.items():
+                    var.set(days_config.get(day, True))
+                
+                self.log_message(f"스케줄 설정 불러옴: 활성화={schedule.get('enabled')}, 간격={schedule.get('interval_hours')}시간, 시간={specific_times}")
+            
             messagebox.showinfo("불러오기 완료", "설정을 config.json에서 불러왔습니다.")
             
         except Exception as e:
             self.log_message(f"설정 파일 불러오기 중 오류: {e}")
             messagebox.showerror("불러오기 오류", f"설정 불러오기 중 오류가 발생했습니다: {e}")
-            self.add_default_accounts()
+            # 기본값으로 초기화 (add_default_accounts 대신 테이블 직접 초기화)
+            self.initialize_default_table_values()
             
         # 계정 목록 표시 업데이트
         self.update_account_list_display()
+    
+    def initialize_default_table_values(self):
+        """테이블을 기본값으로 초기화"""
+        try:
+            # 기본 계정 데이터
+            default_accounts = [
+                {
+                    'id': 'cms045757',
+                    'password': '!7476458aA',
+                    'blog_url': 'https://blog.naver.com/',
+                    'start_page': 1,
+                    'end_page': None,
+                    'enabled': True
+                },
+                {
+                    'id': 'chldudwns645',
+                    'password': '981749aA',
+                    'blog_url': 'https://blog.naver.com/',
+                    'start_page': 1,
+                    'end_page': None,
+                    'enabled': False
+                },
+                {
+                    'id': 'minaci_',
+                    'password': '민아4376!',
+                    'blog_url': 'https://blog.naver.com/',
+                    'start_page': 1,
+                    'end_page': None,
+                    'enabled': False
+                }
+            ]
+            
+            # 테이블에 기본값 설정
+            for i, account_data in enumerate(default_accounts):
+                row = i + 1
+                
+                # 체크박스 설정
+                check_var = getattr(self, f'account{row}_check', None)
+                if check_var:
+                    check_var.set(account_data.get('enabled', False))
+                
+                # 아이디 설정
+                id_entry = getattr(self, f'account{row}_id', None)
+                if id_entry:
+                    id_entry.delete(0, tk.END)
+                    id_entry.insert(0, account_data.get('id', ''))
+                
+                # 비밀번호 설정
+                pw_entry = getattr(self, f'account{row}_pw', None)
+                if pw_entry:
+                    pw_entry.delete(0, tk.END)
+                    pw_entry.insert(0, account_data.get('password', ''))
+                
+                # 블로그 URL 설정
+                url_entry = getattr(self, f'account{row}_url', None)
+                if url_entry:
+                    url_entry.delete(0, tk.END)
+                    url_entry.insert(0, account_data.get('blog_url', 'https://blog.naver.com/'))
+                
+                # 시작 페이지 설정
+                start_page_entry = getattr(self, f'account{row}_start_page', None)
+                if start_page_entry:
+                    start_page_entry.delete(0, tk.END)
+                    start_page_entry.insert(0, str(account_data.get('start_page', 1)))
+                
+                # 끝 페이지 설정
+                end_page_entry = getattr(self, f'account{row}_end_page', None)
+                if end_page_entry:
+                    end_page_entry.delete(0, tk.END)
+                    end_page_entry.insert(0, str(account_data.get('end_page', '')))
+            
+            self.log_message("기본 계정 설정으로 초기화되었습니다.")
+            
+        except Exception as e:
+            self.log_message(f"기본값 초기화 중 오류: {e}")
     
     def save_config(self):
         """현재 설정을 config.json 파일에 저장합니다."""
@@ -850,6 +1215,17 @@ class BlogLikeAutomationGUI:
     def save_config_manual(self):
         """설정을 config.json에 저장 (테이블 기반)"""
         try:
+            # 기존 config.json 로드 (모든 데이터 보존)
+            config_data = {}
+            if os.path.exists('config.json'):
+                try:
+                    with open('config.json', 'r', encoding='utf-8') as f:
+                        config_data = json.load(f)
+                    self.log_message("기존 config.json을 로드했습니다.")
+                except Exception as load_e:
+                    self.log_message(f"기존 config.json 로드 실패: {load_e}")
+                    config_data = {}
+            
             # 테이블에서 계정 데이터 수집
             accounts = []
             for i in range(1, 4):  # 계정 1, 2, 3
@@ -861,31 +1237,33 @@ class BlogLikeAutomationGUI:
                 end_page_entry = getattr(self, f'account{i}_end_page', None)
                 
                 if all([check_var, id_entry, pw_entry, url_entry, start_page_entry, end_page_entry]):
-                    account_data = {
-                        'id': id_entry.get().strip(),
-                        'password': pw_entry.get().strip(),
-                        'blog_url': url_entry.get().strip(),
-                        'start_page': int(start_page_entry.get()) if start_page_entry.get().strip() else 1,
-                        'end_page': int(end_page_entry.get()) if end_page_entry.get().strip() else None,
-                        'enabled': check_var.get()
-                    }
-                    accounts.append(account_data)
+                    # 빈 값이 아닌 계정만 저장
+                    if id_entry.get().strip() and pw_entry.get().strip():
+                        account_data = {
+                            'id': id_entry.get().strip(),
+                            'password': pw_entry.get().strip(),
+                            'blog_url': url_entry.get().strip(),
+                            'start_page': int(start_page_entry.get()) if start_page_entry.get().strip() else 1,
+                            'end_page': int(end_page_entry.get()) if end_page_entry.get().strip() else None,
+                            'enabled': check_var.get()
+                        }
+                        accounts.append(account_data)
             
-            # config.json 구조 생성
-            config_data = {
-                'accounts': accounts,
-                'automation_settings': {
-                    'scroll_delay': float(self.scroll_delay_var.get()) if self.scroll_delay_var.get() else 2.0,
-                    'click_delay': float(self.click_delay_var.get()) if self.click_delay_var.get() else 1.0
-                }
+            # 계정 데이터 업데이트
+            config_data['accounts'] = accounts
+            
+            # 자동화 설정 업데이트
+            config_data['automation_settings'] = {
+                'scroll_delay': float(self.scroll_delay_var.get()) if self.scroll_delay_var.get() else 2.0,
+                'click_delay': float(self.click_delay_var.get()) if self.click_delay_var.get() else 1.0
             }
             
-            # config.json 파일에 저장
+            # config.json 파일에 저장 (기존 automation_schedule 등은 그대로 유지)
             with open('config.json', 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, ensure_ascii=False, indent=2)
             
+            self.log_message(f"설정 저장 완료: 계정 {len(accounts)}개, 자동화 설정, 기존 스케줄 설정 유지")
             messagebox.showinfo("성공", "설정이 config.json에 저장되었습니다.")
-            self.log_message("설정이 config.json에 저장되었습니다.")
             
         except Exception as e:
             messagebox.showerror("오류", f"설정 저장 중 오류가 발생했습니다: {str(e)}")
@@ -894,12 +1272,41 @@ class BlogLikeAutomationGUI:
     def reset_config(self):
         """설정을 초기화합니다."""
         if messagebox.askyesno("설정 초기화", "모든 계정 설정을 초기화하시겠습니까?"):
-            # 기존 계정 목록 초기화
-            self.accounts.clear()
-            self.account_listbox.delete(0, tk.END)
-            
-            # 기본 계정들 추가
-            self.add_default_accounts()
+            # 테이블의 모든 입력 필드 초기화
+            for i in range(1, 4):  # 계정 1, 2, 3
+                # 체크박스 초기화
+                check_var = getattr(self, f'account{i}_check', None)
+                if check_var:
+                    check_var.set(i == 1)  # 첫 번째 계정만 체크
+                
+                # 아이디 초기화
+                id_entry = getattr(self, f'account{i}_id', None)
+                if id_entry:
+                    id_entry.delete(0, tk.END)
+                    id_entry.insert(0, f'아이디{i}')
+                
+                # 비밀번호 초기화
+                pw_entry = getattr(self, f'account{i}_pw', None)
+                if pw_entry:
+                    pw_entry.delete(0, tk.END)
+                    pw_entry.insert(0, f'비밀번호{i}')
+                
+                # 블로그 URL 초기화
+                url_entry = getattr(self, f'account{i}_url', None)
+                if url_entry:
+                    url_entry.delete(0, tk.END)
+                    url_entry.insert(0, 'https://blog.naver.com/')
+                
+                # 시작 페이지 초기화
+                start_page_entry = getattr(self, f'account{i}_start_page', None)
+                if start_page_entry:
+                    start_page_entry.delete(0, tk.END)
+                    start_page_entry.insert(0, '1')
+                
+                # 끝 페이지 초기화
+                end_page_entry = getattr(self, f'account{i}_end_page', None)
+                if end_page_entry:
+                    end_page_entry.delete(0, tk.END)
             
             self.log_message("설정이 초기화되었습니다.")
     
@@ -1113,6 +1520,11 @@ class BlogLikeAutomationGUI:
             self.update_account_status(account, "오류")
         finally:
             account['is_running'] = False
+            # 실행 중인 계정 목록에서 제거
+            if account['user_id'] in self.running_accounts:
+                self.running_accounts.remove(account['user_id'])
+                self.log_message(f"계정 {account['user_id']} 실행 완료 및 목록에서 제거됨", account_id)
+            
             if account['driver']:
                 try:
                     account['driver'].quit()
@@ -1123,6 +1535,12 @@ class BlogLikeAutomationGUI:
     def stop_all_accounts(self):
         """모든 계정 중지"""
         stopped_count = 0
+        
+        # 실행 중인 계정 목록 초기화
+        if self.running_accounts:
+            self.log_message(f"실행 중인 계정들을 중지합니다: {list(self.running_accounts)}")
+            self.running_accounts.clear()
+        
         for account in self.accounts:
             if account['is_running']:
                 account['is_running'] = False
@@ -1207,6 +1625,11 @@ class BlogLikeAutomationGUI:
             self.update_account_status(account, "오류")
         finally:
             account['is_running'] = False
+            # 실행 중인 계정 목록에서 제거
+            if account['user_id'] in self.running_accounts:
+                self.running_accounts.remove(account['user_id'])
+                self.log_message(f"계정 {account['user_id']} 실행 완료 및 목록에서 제거됨", account_id)
+            
             if account['driver']:
                 try:
                     account['driver'].quit()
