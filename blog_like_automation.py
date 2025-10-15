@@ -583,15 +583,50 @@ class BlogLikeAutomationGUI:
                                   style='Modern.TEntry', width=8)
         interval_entry.pack(side=tk.LEFT, padx=(0, 20))
         
-        # 특정 시간 설정
+        # 특정 시간 설정 (시간 피커)
         time_frame = ttk.Frame(schedule_settings_frame, style='Card.TFrame')
         time_frame.pack(fill=tk.X, pady=(0, 10))
         
-        ttk.Label(time_frame, text="특정 시간 (HH:MM, 쉼표로 구분)", style='Body.TLabel').pack(anchor=tk.W)
-        self.specific_times_var = tk.StringVar(value="09:00, 18:00")
-        time_entry = ttk.Entry(time_frame, textvariable=self.specific_times_var, 
-                              style='Modern.TEntry')
-        time_entry.pack(fill=tk.X, pady=(5, 0))
+        ttk.Label(time_frame, text="특정 시간 설정", style='Body.TLabel').pack(anchor=tk.W)
+        
+        # 시간 피커 프레임
+        time_picker_frame = ttk.Frame(time_frame, style='Card.TFrame')
+        time_picker_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        # 시간 선택 (시:분)
+        hour_minute_frame = ttk.Frame(time_picker_frame, style='Card.TFrame')
+        hour_minute_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(hour_minute_frame, text="시:", style='Body.TLabel').pack(side=tk.LEFT, padx=(0, 5))
+        self.hour_var = tk.StringVar(value="09")
+        hour_spinbox = ttk.Spinbox(hour_minute_frame, from_=0, to=23, width=3, 
+                                  textvariable=self.hour_var, format="%02.0f")
+        hour_spinbox.pack(side=tk.LEFT, padx=(0, 10))
+        
+        ttk.Label(hour_minute_frame, text="분:", style='Body.TLabel').pack(side=tk.LEFT, padx=(0, 5))
+        self.minute_var = tk.StringVar(value="00")
+        minute_spinbox = ttk.Spinbox(hour_minute_frame, from_=0, to=59, width=3, 
+                                    textvariable=self.minute_var, format="%02.0f")
+        minute_spinbox.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # 추가 버튼
+        add_time_btn = ttk.Button(hour_minute_frame, text="시간 추가", 
+                                 command=self.add_scheduled_time, style='Modern.TButton')
+        add_time_btn.pack(side=tk.LEFT, padx=(10, 0))
+        
+        # 시간 목록 (Listbox)
+        self.scheduled_times_listbox = tk.Listbox(time_picker_frame, height=4, 
+                                                 font=('맑은 고딕', 9))
+        self.scheduled_times_listbox.pack(fill=tk.X, pady=(5, 5))
+        
+        # 삭제 버튼
+        remove_time_btn = ttk.Button(time_picker_frame, text="선택 시간 삭제", 
+                                    command=self.remove_scheduled_time, style='Modern.TButton')
+        remove_time_btn.pack(anchor=tk.W)
+        
+        # 내부 변수 초기화
+        self.scheduled_times = []
+        self.specific_times_var = tk.StringVar(value="")
         
         # 요일 설정
         days_frame = ttk.Frame(schedule_settings_frame, style='Card.TFrame')
@@ -895,13 +930,12 @@ class BlogLikeAutomationGUI:
                     time.sleep(60)
                     continue
                 
-                # 특정 시간 확인
-                specific_times_str = self.specific_times_var.get()
-                specific_times = [t.strip() for t in specific_times_str.split(',') if t.strip()]
+                # 특정 시간 확인 (시간 피커에서 직접 가져오기)
+                specific_times = self.scheduled_times.copy()
                 
                 if current_time in specific_times:
                     # 중복 실행 방지: 마지막 실행 시간 확인
-                    if not hasattr(self, 'last_scheduled_run') or (now - self.last_scheduled_run) > 300:  # 5분 이상 차이
+                    if not hasattr(self, 'last_scheduled_run') or (now - self.last_scheduled_run) > 60:  # 1분 이상 차이
                         self.log_message(f"⏰ 스케줄된 시간 {current_time}에 자동화를 시작합니다.")
                         self.start_selected_accounts()
                         self.last_scheduled_run = now
@@ -916,7 +950,7 @@ class BlogLikeAutomationGUI:
                 
                 if now - self.last_run_time >= interval_hours * 3600:  # 시간을 초로 변환
                     # 중복 실행 방지: 마지막 실행 시간 확인
-                    if not hasattr(self, 'last_interval_run') or (now - self.last_interval_run) > 300:  # 5분 이상 차이
+                    if not hasattr(self, 'last_interval_run') or (now - self.last_interval_run) > 60:  # 1분 이상 차이
                         self.log_message(f"⏰ {interval_hours}시간 간격으로 자동화를 시작합니다.")
                         self.start_selected_accounts()
                         self.last_interval_run = now
@@ -932,6 +966,47 @@ class BlogLikeAutomationGUI:
                 self.log_message(f"❌ 상세 오류: {traceback.format_exc()}")
                 time.sleep(60)
     
+    def add_scheduled_time(self):
+        """선택된 시간을 목록에 추가"""
+        try:
+            hour = self.hour_var.get().zfill(2)
+            minute = self.minute_var.get().zfill(2)
+            time_str = f"{hour}:{minute}"
+            
+            # 중복 확인
+            if time_str not in self.scheduled_times:
+                self.scheduled_times.append(time_str)
+                self.scheduled_times_listbox.insert(tk.END, time_str)
+                self.update_scheduled_times_var()
+                self.log_message(f"✅ 시간 {time_str}이 추가되었습니다.")
+            else:
+                self.log_message(f"⚠️ 시간 {time_str}은 이미 존재합니다.")
+                
+        except Exception as e:
+            self.log_message(f"❌ 시간 추가 오류: {e}")
+    
+    def remove_scheduled_time(self):
+        """선택된 시간을 목록에서 삭제"""
+        try:
+            selection = self.scheduled_times_listbox.curselection()
+            if selection:
+                index = selection[0]
+                removed_time = self.scheduled_times[index]
+                self.scheduled_times_listbox.delete(index)
+                del self.scheduled_times[index]
+                self.update_scheduled_times_var()
+                self.log_message(f"✅ 시간 {removed_time}이 삭제되었습니다.")
+            else:
+                self.log_message("⚠️ 삭제할 시간을 선택해주세요.")
+                
+        except Exception as e:
+            self.log_message(f"❌ 시간 삭제 오류: {e}")
+    
+    def update_scheduled_times_var(self):
+        """시간 목록을 문자열로 변환하여 저장"""
+        times_str = ", ".join(self.scheduled_times)
+        self.specific_times_var.set(times_str)
+    
     def save_schedule_config(self):
         """스케줄 설정 저장"""
         try:
@@ -946,7 +1021,7 @@ class BlogLikeAutomationGUI:
             config_data['automation_schedule'] = {
                 'enabled': self.schedule_enabled.get(),
                 'interval_hours': int(self.interval_var.get()) if self.interval_var.get().isdigit() else 24,
-                'specific_times': [t.strip() for t in self.specific_times_var.get().split(',') if t.strip()],
+                'specific_times': self.scheduled_times.copy(),  # 리스트로 저장
                 'days': {day: var.get() for day, var in self.days_vars.items()}
             }
             
@@ -1081,9 +1156,21 @@ class BlogLikeAutomationGUI:
                 # specific_times 처리 (리스트 또는 문자열)
                 specific_times = schedule.get('specific_times', ['09:00', '18:00'])
                 if isinstance(specific_times, list):
+                    self.scheduled_times = specific_times.copy()
                     self.specific_times_var.set(', '.join(specific_times))
+                    # Listbox에 시간 목록 표시
+                    self.scheduled_times_listbox.delete(0, tk.END)
+                    for time_str in specific_times:
+                        self.scheduled_times_listbox.insert(tk.END, time_str)
                 else:
+                    # 문자열인 경우 쉼표로 분리
+                    times_list = [t.strip() for t in specific_times.split(',') if t.strip()]
+                    self.scheduled_times = times_list
                     self.specific_times_var.set(specific_times)
+                    # Listbox에 시간 목록 표시
+                    self.scheduled_times_listbox.delete(0, tk.END)
+                    for time_str in times_list:
+                        self.scheduled_times_listbox.insert(tk.END, time_str)
                 
                 # 요일 설정 불러오기
                 days_config = schedule.get('days', {})
