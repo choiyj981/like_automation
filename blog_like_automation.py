@@ -866,8 +866,9 @@ class BlogLikeAutomationGUI:
                         'selected': True,
                         'is_running': False,  # 새로 시작하는 계정이므로 False로 설정
                         'current_page': int(start_page_entry.get()) if start_page_entry.get().strip() else 1,
-                        'liked_count': 0,
-                        'skipped_count': 0,
+                        'like_count': 0,  # 공감 카운트 (기존 코드와 호환)
+                        'skipped_count': 0,  # 건너뛴 카운트
+                        'liked_count': 0,  # 텔레그램용
                         'driver': None,  # WebDriver 인스턴스
                         'wait': None,   # WebDriverWait 인스턴스
                         'status': '대기중'
@@ -1217,26 +1218,30 @@ class BlogLikeAutomationGUI:
             start_page = account.get('start_page', 1)
             end_page = account.get('end_page', 1)
             
-            # 작업 통계 가져오기 (account 객체에서)
-            liked_count = getattr(account, 'liked_count', 0)
-            skipped_count = getattr(account, 'skipped_count', 0)
-            current_page = getattr(account, 'current_page', start_page)
+            # 작업 통계 가져오기 (account 딕셔너리에서)
+            liked_count = account.get('like_count', 0)  # 실제 저장되는 키 사용
+            skipped_count = account.get('skipped_count', 0)
+            current_page = account.get('current_page', start_page)
             
             if status == "완료":
+                # 실제 처리된 페이지 수 계산
+                total_processed_pages = current_page - start_page + 1
                 message = f"""🤖 <b>네이버 블로그 자동화 완료</b>
 
 👤 <b>계정:</b> {account_id}
 ⏰ <b>완료 시간:</b> {current_time}
-📄 <b>처리 페이지:</b> {start_page}~{current_page} (총 {end_page}페이지)
+📄 <b>처리 페이지:</b> {start_page}~{current_page} (총 {total_processed_pages}페이지)
 ❤️ <b>공감 수:</b> {liked_count}개
 ⏭️ <b>건너뛴 수:</b> {skipped_count}개
 ✅ <b>상태:</b> 정상 완료"""
             else:
+                # 실제 처리된 페이지 수 계산
+                total_processed_pages = current_page - start_page + 1
                 message = f"""🚨 <b>네이버 블로그 자동화 오류</b>
 
 👤 <b>계정:</b> {account_id}
 ⏰ <b>오류 시간:</b> {current_time}
-📄 <b>처리 페이지:</b> {start_page}~{current_page} (총 {end_page}페이지)
+📄 <b>처리 페이지:</b> {start_page}~{current_page} (총 {total_processed_pages}페이지)
 ❤️ <b>공감 수:</b> {liked_count}개
 ⏭️ <b>건너뛴 수:</b> {skipped_count}개
 ❌ <b>상태:</b> 오류 발생
@@ -1257,8 +1262,6 @@ class BlogLikeAutomationGUI:
             
             with open('config.json', 'r', encoding='utf-8') as f:
                 self.config = json.load(f)
-            
-            self.log_message("config.json에서 설정을 불러왔습니다.")
             
             # 테이블에 계정 데이터 로드
             if 'accounts' in self.config:
@@ -1634,9 +1637,6 @@ class BlogLikeAutomationGUI:
             
             # 계정 목록 표시 업데이트
             self.update_account_list_display()
-            
-            # 설정 자동 저장
-            self.save_config()
     
     def update_account_status(self, account, status):
         """계정 상태 업데이트"""
@@ -1707,8 +1707,6 @@ class BlogLikeAutomationGUI:
             
             # 계정 목록 표시 업데이트
             self.update_account_list_display()
-            
-            self.save_config()
     
     def create_account_log_tab(self, account_id, user_id):
         """계정별 로그 탭 생성"""
@@ -1855,6 +1853,13 @@ class BlogLikeAutomationGUI:
             
             # 페이지별 처리
             while account['is_running']:
+                # 현재 페이지 번호를 실제 페이지로 업데이트
+                try:
+                    actual_page = self.get_account_current_page_number(account)
+                    account['current_page'] = actual_page
+                except:
+                    pass  # 페이지 번호 확인 실패 시 기존 값 유지
+                
                 self.log_message(f"페이지 {account['current_page']} 처리 시작...", account_id)
                 
                 # 페이지 하단까지 스크롤
@@ -1882,11 +1887,6 @@ class BlogLikeAutomationGUI:
             
             # 텔레그램 알림 전송
             try:
-                # 통계 정보를 account 객체에 저장
-                account['liked_count'] = account.get('like_count', 0)
-                account['skipped_count'] = account.get('skipped_count', 0)
-                account['current_page'] = account.get('current_page', account.get('start_page', 1))
-                
                 message = self.format_completion_message(account, "완료")
                 self.send_telegram_message(message)
             except Exception as e:
@@ -1898,10 +1898,6 @@ class BlogLikeAutomationGUI:
             
             # 오류 발생 시에도 텔레그램 알림 전송
             try:
-                account['liked_count'] = account.get('like_count', 0)
-                account['skipped_count'] = account.get('skipped_count', 0)
-                account['current_page'] = account.get('current_page', account.get('start_page', 1))
-                
                 message = self.format_completion_message(account, "오류", str(e))
                 self.send_telegram_message(message)
             except Exception as notify_error:
@@ -2478,7 +2474,7 @@ class BlogLikeAutomationGUI:
                     is_liked = self.is_account_already_liked(account, button)
                     if is_liked:
                         skipped_count += 1
-                        account['skipped_count'] += 1
+                        account['skipped_count'] = account.get('skipped_count', 0) + 1
                         self.log_message(f"계정 {account['user_id']} 게시글 {i+1}: 이미 공감한 게시글입니다. 건너뜁니다.", account['id'])
                         continue
                     else:
@@ -2496,7 +2492,7 @@ class BlogLikeAutomationGUI:
                     self.log_message(f"계정 {account['user_id']} 게시글 {i+1}: 기본 공감 클릭 완료", account['id'])
                     
                     clicked_count += 1
-                    account['like_count'] += 1
+                    account['like_count'] = account.get('like_count', 0) + 1
                     
                 except Exception as e:
                     self.log_message(f"계정 {account['user_id']} 게시글 {i+1} 공감 버튼 클릭 중 오류: {e}", account['id'])
@@ -3272,14 +3268,12 @@ class BlogLikeAutomationGUI:
                 self.stop_requested = True
                 if self.driver:
                     self.driver.quit()
-                # 설정 자동 저장
-                self.save_config()
+                # 설정은 수동 저장만 사용 (자동 저장 제거)
                 self.root.destroy()
         else:
             if self.driver:
                 self.driver.quit()
-            # 설정 자동 저장
-            self.save_config()
+            # 설정은 수동 저장만 사용 (자동 저장 제거)
             self.root.destroy()
 
 class AccountDialog:
