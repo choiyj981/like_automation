@@ -1,9 +1,50 @@
 {
-  "accounts": [],
-  "settings": {
-    "window_title": "네이버 블로그 공감 자동화 프로그램",
-    "window_size": "1200x800",
-    "log_height": 15,
-    "log_width": 80
+  "accounts": [
+    {
+      "id": "minaci_",
+      "password": "alsdk1004!",
+      "blog_url": "https://blog.naver.com/",
+      "start_page": 1,
+      "end_page": 3,
+      "enabled": true
+    },
+    {
+      "id": "cms045757",
+      "password": "!7476458aA",
+      "blog_url": "https://blog.naver.com/",
+      "start_page": 1,
+      "end_page": 3,
+      "enabled": true
+    },
+    {
+      "id": "chldudwns645",
+      "password": "981749aA",
+      "blog_url": "https://blog.naver.com/",
+      "start_page": 1,
+      "end_page": 3,
+      "enabled": true
+    }
+  ],
+  "automation_settings": {
+    "scroll_delay": 2.0,
+    "click_delay": 1.0
+  },
+  "automation_schedule": {
+    "enabled": true,
+    "interval_hours": 24,
+    "specific_times": [
+      "11:05",
+      "11:07",
+      "11:09"
+    ],
+    "days": {
+      "monday": true,
+      "tuesday": true,
+      "wednesday": true,
+      "thursday": true,
+      "friday": true,
+      "saturday": true,
+      "sunday": true
+    }
   }
 }
