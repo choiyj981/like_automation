@@ -76,6 +76,8 @@ import re
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 import pyperclip
+import requests
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -315,6 +317,9 @@ class BlogLikeAutomationGUI:
         # 설정 섹션
         self.create_settings_section()
         
+        # 텔레그램 알림 설정 섹션
+        self.create_telegram_section()
+        
         # 제어 섹션
         self.create_control_section()
         
@@ -520,6 +525,80 @@ class BlogLikeAutomationGUI:
         click_delay_entry = ttk.Entry(delay_frame, textvariable=self.click_delay_var, 
                                      style='Modern.TEntry', width=6)
         click_delay_entry.pack(side=tk.LEFT)
+    
+    def create_telegram_section(self):
+        """텔레그램 알림 설정 섹션 생성"""
+        # 텔레그램 설정 카드
+        telegram_card = ttk.Frame(self.scrollable_frame, style='Card.TFrame', padding="15")
+        telegram_card.pack(fill=tk.X, padx=15, pady=10)
+        
+        # 섹션 제목
+        section_title = ttk.Label(telegram_card, text="텔레그램 알림 설정", style='Headline.TLabel')
+        section_title.pack(anchor=tk.W, pady=(0, 10))
+        
+        # 알림 활성화 체크박스
+        self.telegram_enabled_var = tk.BooleanVar()
+        telegram_checkbox_frame, telegram_checkbox = AppleStyle.create_modern_checkbox(
+            telegram_card, 
+            "텔레그램 알림 활성화", 
+            self.telegram_enabled_var
+        )
+        telegram_checkbox_frame.pack(anchor=tk.W, pady=(0, 10))
+        
+        # 설정 그리드
+        telegram_grid = ttk.Frame(telegram_card, style='Card.TFrame')
+        telegram_grid.pack(fill=tk.X)
+        
+        # 봇 토큰 설정
+        token_frame = ttk.Frame(telegram_grid, style='Card.TFrame')
+        token_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(token_frame, text="봇 토큰", style='Body.TLabel').pack(anchor=tk.W)
+        self.telegram_bot_token_var = tk.StringVar()
+        token_entry = ttk.Entry(token_frame, textvariable=self.telegram_bot_token_var, 
+                               style='Modern.TEntry', show="*")
+        token_entry.pack(fill=tk.X, pady=(5, 0))
+        
+        # 채팅 ID 설정
+        chat_frame = ttk.Frame(telegram_grid, style='Card.TFrame')
+        chat_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        ttk.Label(chat_frame, text="채팅 ID", style='Body.TLabel').pack(anchor=tk.W)
+        self.telegram_chat_id_var = tk.StringVar()
+        chat_entry = ttk.Entry(chat_frame, textvariable=self.telegram_chat_id_var, 
+                              style='Modern.TEntry')
+        chat_entry.pack(fill=tk.X, pady=(5, 0))
+        
+        # 테스트 버튼
+        test_frame = ttk.Frame(telegram_grid, style='Card.TFrame')
+        test_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        test_button = ttk.Button(test_frame, text="테스트 메시지 전송", 
+                                command=self.test_telegram_message,
+                                style='Action.TButton')
+        test_button.pack(side=tk.LEFT)
+        
+        # 도움말 텍스트
+        help_text = ttk.Label(telegram_card, 
+                             text="• @BotFather에서 봇을 생성하고 토큰을 발급받으세요\n• 봇과 대화를 시작한 후 @userinfobot으로 채팅 ID를 확인하세요",
+                             style='Caption.TLabel')
+        help_text.pack(anchor=tk.W, pady=(10, 0))
+    
+    def test_telegram_message(self):
+        """텔레그램 테스트 메시지 전송"""
+        try:
+            test_message = f"""🧪 <b>텔레그램 알림 테스트</b>
+
+✅ 텔레그램 알림이 정상적으로 설정되었습니다!
+⏰ <b>테스트 시간:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+🤖 <b>상태:</b> 연결 성공"""
+            
+            if self.send_telegram_message(test_message):
+                messagebox.showinfo("성공", "텔레그램 테스트 메시지가 전송되었습니다!")
+            else:
+                messagebox.showerror("오류", "텔레그램 메시지 전송에 실패했습니다.\n설정을 확인해주세요.")
+        except Exception as e:
+            messagebox.showerror("오류", f"테스트 중 오류가 발생했습니다: {str(e)}")
     
     def create_control_section(self):
         """제어 섹션 생성"""
@@ -1088,6 +1167,86 @@ class BlogLikeAutomationGUI:
         
         self.root.update_idletasks()
     
+    def send_telegram_message(self, message):
+        """텔레그램 메시지 전송"""
+        try:
+            # 설정에서 텔레그램 정보 가져오기
+            telegram_config = self.config.get('telegram_notifications', {})
+            
+            if not telegram_config.get('enabled', False):
+                return False
+                
+            bot_token = telegram_config.get('bot_token', '')
+            chat_id = telegram_config.get('chat_id', '')
+            
+            if not bot_token or not chat_id:
+                self.log_message("텔레그램 봇 토큰 또는 채팅 ID가 설정되지 않았습니다.")
+                return False
+            
+            # 텔레그램 API URL
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            
+            # 메시지 데이터
+            data = {
+                'chat_id': chat_id,
+                'text': message,
+                'parse_mode': 'HTML'
+            }
+            
+            # HTTP 요청 전송
+            response = requests.post(url, data=data, timeout=10)
+            
+            if response.status_code == 200:
+                self.log_message("텔레그램 알림 전송 완료")
+                return True
+            else:
+                self.log_message(f"텔레그램 알림 전송 실패: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_message(f"텔레그램 알림 전송 중 오류: {str(e)}")
+            return False
+    
+    def format_completion_message(self, account, status="완료", error_message=None):
+        """계정 완료 정보를 포맷팅"""
+        try:
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # 계정 정보 가져오기
+            account_id = account.get('id', 'Unknown')
+            start_page = account.get('start_page', 1)
+            end_page = account.get('end_page', 1)
+            
+            # 작업 통계 가져오기 (account 객체에서)
+            liked_count = getattr(account, 'liked_count', 0)
+            skipped_count = getattr(account, 'skipped_count', 0)
+            current_page = getattr(account, 'current_page', start_page)
+            
+            if status == "완료":
+                message = f"""🤖 <b>네이버 블로그 자동화 완료</b>
+
+👤 <b>계정:</b> {account_id}
+⏰ <b>완료 시간:</b> {current_time}
+📄 <b>처리 페이지:</b> {start_page}~{current_page} (총 {end_page}페이지)
+❤️ <b>공감 수:</b> {liked_count}개
+⏭️ <b>건너뛴 수:</b> {skipped_count}개
+✅ <b>상태:</b> 정상 완료"""
+            else:
+                message = f"""🚨 <b>네이버 블로그 자동화 오류</b>
+
+👤 <b>계정:</b> {account_id}
+⏰ <b>오류 시간:</b> {current_time}
+📄 <b>처리 페이지:</b> {start_page}~{current_page} (총 {end_page}페이지)
+❤️ <b>공감 수:</b> {liked_count}개
+⏭️ <b>건너뛴 수:</b> {skipped_count}개
+❌ <b>상태:</b> 오류 발생
+🔍 <b>오류 내용:</b> {error_message or '알 수 없는 오류'}"""
+            
+            return message
+            
+        except Exception as e:
+            return f"메시지 포맷팅 중 오류: {str(e)}"
+    
     def load_config(self):
         """config.json에서 설정을 불러옵니다 (테이블 기반)."""
         try:
@@ -1146,6 +1305,13 @@ class BlogLikeAutomationGUI:
                 settings = self.config['automation_settings']
                 self.scroll_delay_var.set(str(settings.get('scroll_delay', 2)))
                 self.click_delay_var.set(str(settings.get('click_delay', 1)))
+            
+            # 텔레그램 설정 불러오기
+            if 'telegram_notifications' in self.config:
+                telegram_config = self.config['telegram_notifications']
+                self.telegram_enabled_var.set(telegram_config.get('enabled', False))
+                self.telegram_bot_token_var.set(telegram_config.get('bot_token', ''))
+                self.telegram_chat_id_var.set(telegram_config.get('chat_id', ''))
             
             # 스케줄 설정 불러오기
             if 'automation_schedule' in self.config:
@@ -1343,6 +1509,13 @@ class BlogLikeAutomationGUI:
             config_data['automation_settings'] = {
                 'scroll_delay': float(self.scroll_delay_var.get()) if self.scroll_delay_var.get() else 2.0,
                 'click_delay': float(self.click_delay_var.get()) if self.click_delay_var.get() else 1.0
+            }
+            
+            # 텔레그램 설정 업데이트
+            config_data['telegram_notifications'] = {
+                'enabled': self.telegram_enabled_var.get(),
+                'bot_token': self.telegram_bot_token_var.get(),
+                'chat_id': self.telegram_chat_id_var.get()
             }
             
             # config.json 파일에 저장 (기존 automation_schedule 등은 그대로 유지)
@@ -1707,9 +1880,32 @@ class BlogLikeAutomationGUI:
             self.log_message(f"자동화 완료! 총 {account['like_count']}개의 공감을 클릭하고, {account['skipped_count']}개를 건너뛰었습니다.", account_id)
             self.update_account_status(account, "완료")
             
+            # 텔레그램 알림 전송
+            try:
+                # 통계 정보를 account 객체에 저장
+                account['liked_count'] = account.get('like_count', 0)
+                account['skipped_count'] = account.get('skipped_count', 0)
+                account['current_page'] = account.get('current_page', account.get('start_page', 1))
+                
+                message = self.format_completion_message(account, "완료")
+                self.send_telegram_message(message)
+            except Exception as e:
+                self.log_message(f"텔레그램 알림 전송 중 오류: {str(e)}", account_id)
+            
         except Exception as e:
             self.log_message(f"계정 {account['user_id']} 자동화 작업 오류: {e}", account_id)
             self.update_account_status(account, "오류")
+            
+            # 오류 발생 시에도 텔레그램 알림 전송
+            try:
+                account['liked_count'] = account.get('like_count', 0)
+                account['skipped_count'] = account.get('skipped_count', 0)
+                account['current_page'] = account.get('current_page', account.get('start_page', 1))
+                
+                message = self.format_completion_message(account, "오류", str(e))
+                self.send_telegram_message(message)
+            except Exception as notify_error:
+                self.log_message(f"텔레그램 오류 알림 전송 중 오류: {str(notify_error)}", account_id)
         finally:
             account['is_running'] = False
             # 실행 중인 계정 목록에서 제거

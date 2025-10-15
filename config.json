@@ -46,5 +46,10 @@
       "saturday": true,
       "sunday": true
     }
+  },
+  "telegram_notifications": {
+    "enabled": true,
+    "bot_token": "7693251893:AAGjRwSK3YKvW1VORqZomwDQi02Q_OUSQFc",
+    "chat_id": "1646923796"
   }
 }
